@@ -41,7 +41,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
       case 'To Do': 
         return 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80';
       case 'On Dev': 
-        return 'bg-blue-500 text-white hover:bg-blue-500/90 dark:bg-blue-600 dark:hover:bg-blue-600/90'; // Adjusted On Dev color
+        return 'bg-blue-500 text-white hover:bg-blue-500/90 dark:bg-blue-600 dark:hover:bg-blue-600/90';
       case 'On QA':
         return 'bg-yellow-500 text-white hover:bg-yellow-500/90 dark:bg-yellow-600 dark:hover:bg-yellow-600/90';
       case 'Done': 

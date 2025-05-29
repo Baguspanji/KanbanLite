@@ -4,9 +4,23 @@
 import type { Project, Task, TaskStatus, Comment } from '@/types';
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import { formatISO } from 'date-fns';
-import { database } from '@/lib/firebase';
-import { ref, onValue, set, push, update, remove, get, child } from 'firebase/database';
+import { formatISO, parseISO } from 'date-fns';
+import { db } from '@/lib/firebase'; // Changed import
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  getDocs,
+  Timestamp,
+  orderBy,
+  writeBatch,
+  arrayUnion
+} from 'firebase/firestore';
 
 type Theme = 'light' | 'dark';
 
@@ -46,26 +60,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  // Firebase Listeners
+  // Firestore Listeners
   useEffect(() => {
     setIsLoading(true);
-    const projectsRef = ref(database, 'projects');
-    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
-      const data = snapshot.val();
-      const loadedProjects = data ? Object.keys(data).map(key => ({ id: key, ...data[key] } as Project)) : [];
+    const projectsCollectionRef = collection(db, 'projects');
+    const tasksCollectionRef = collection(db, 'tasks');
+
+    const qProjects = query(projectsCollectionRef, orderBy('createdAt', 'desc'));
+    const unsubscribeProjects = onSnapshot(qProjects, (snapshot) => {
+      const loadedProjects = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp).toDate().toISOString(),
+      } as Project));
       setProjects(loadedProjects);
-      if (tasks.length > 0 || !data) setIsLoading(false); // Only set loading to false if tasks also loaded or no projects
+      // Avoid premature loading state change if tasks are not yet loaded.
+      if (!snapshot.metadata.hasPendingWrites && tasks.length > 0 || snapshot.empty) {
+         // setIsLoading(false); // This might cause issues if tasks are still loading
+      }
     }, (error) => {
       console.error("Error fetching projects: ", error);
       setIsLoading(false);
     });
 
-    const tasksRef = ref(database, 'tasks');
-    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
-      const data = snapshot.val();
-      const loadedTasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] } as Task)) : [];
+    const qTasks = query(tasksCollectionRef, orderBy('createdAt', 'asc'));
+    const unsubscribeTasks = onSnapshot(qTasks, (snapshot) => {
+      const loadedTasks = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+          deadline: data.deadline ? (data.deadline as Timestamp).toDate().toISOString() : undefined,
+          comments: (data.comments || []).map((comment: any) => ({
+            ...comment,
+            createdAt: (comment.createdAt as Timestamp).toDate().toISOString(),
+          })),
+        } as Task;
+      });
       setTasks(loadedTasks);
-      setIsLoading(false); // Set loading to false after tasks are loaded
+      setIsLoading(false); // Set loading to false after tasks (and potentially projects) are loaded
     }, (error) => {
       console.error("Error fetching tasks: ", error);
       setIsLoading(false);
@@ -75,18 +109,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       unsubscribeProjects();
       unsubscribeTasks();
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, []); // tasks dependency removed to avoid re-subscribing excessively. Loading managed better.
 
   const addProject = useCallback(async (name: string, description?: string): Promise<Project | null> => {
-    const newProjectRef = push(ref(database, 'projects'));
-    const newProject: Omit<Project, 'id'> = {
+    const newProjectData = {
       name,
-      description,
-      createdAt: formatISO(new Date()),
+      description: description || "",
+      createdAt: Timestamp.fromDate(new Date()),
     };
     try {
-      await set(newProjectRef, newProject);
-      return { id: newProjectRef.key!, ...newProject };
+      const docRef = await addDoc(collection(db, 'projects'), newProjectData);
+      return { id: docRef.id, ...newProjectData, createdAt: newProjectData.createdAt.toDate().toISOString() };
     } catch (error) {
       console.error("Error adding project: ", error);
       return null;
@@ -94,53 +127,57 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateProject = useCallback(async (id: string, name: string, description?: string) => {
-    const projectRef = ref(database, `projects/${id}`);
+    const projectDocRef = doc(db, 'projects', id);
     const updates: Partial<Project> = { name };
     if (description !== undefined) {
       updates.description = description;
     }
     try {
-      await update(projectRef, updates);
+      await updateDoc(projectDocRef, updates);
     } catch (error) {
       console.error("Error updating project: ", error);
     }
   }, []);
 
   const deleteProject = useCallback(async (id: string) => {
-    // First, delete all tasks associated with this project
-    const tasksToDelete = tasks.filter(task => task.projectId === id);
-    const deletePromises: Promise<void>[] = [];
-    tasksToDelete.forEach(task => {
-      deletePromises.push(remove(ref(database, `tasks/${task.id}`)));
-    });
+    const projectDocRef = doc(db, 'projects', id);
+    const tasksQuery = query(collection(db, 'tasks'), where('projectId', '==', id));
 
     try {
-      await Promise.all(deletePromises);
-      // Then, delete the project itself
-      await remove(ref(database, `projects/${id}`));
+      const batch = writeBatch(db);
+      const tasksSnapshot = await getDocs(tasksQuery);
+      tasksSnapshot.forEach(taskDoc => {
+        batch.delete(taskDoc.ref);
+      });
+      batch.delete(projectDocRef);
+      await batch.commit();
     } catch (error) {
       console.error("Error deleting project and its tasks: ", error);
     }
-  }, [tasks]); // Include tasks in dependency array
+  }, []);
 
   const getProjectById = useCallback((id: string): Project | undefined => {
     return projects.find((p) => p.id === id);
   }, [projects]);
 
   const addTask = useCallback(async (projectId: string, title: string, description?: string, deadline?: Date, status: TaskStatus = 'To Do'): Promise<Task | null> => {
-    const newTaskRef = push(ref(database, 'tasks'));
-    const newTaskData: Omit<Task, 'id'> = {
+    const newTaskData = {
       projectId,
       title,
-      description,
-      deadline: deadline ? formatISO(deadline, { representation: 'date' }) : undefined,
+      description: description || "",
+      deadline: deadline ? Timestamp.fromDate(deadline) : null,
       status,
-      createdAt: formatISO(new Date()),
+      createdAt: Timestamp.fromDate(new Date()),
       comments: [],
     };
     try {
-      await set(newTaskRef, newTaskData);
-      return { id: newTaskRef.key!, ...newTaskData };
+      const docRef = await addDoc(collection(db, 'tasks'), newTaskData);
+      return { 
+        id: docRef.id, 
+        ...newTaskData, 
+        createdAt: newTaskData.createdAt.toDate().toISOString(),
+        deadline: newTaskData.deadline ? newTaskData.deadline.toDate().toISOString() : undefined,
+      };
     } catch (error) {
       console.error("Error adding task: ", error);
       return null;
@@ -148,31 +185,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateTask = useCallback(async (id: string, taskUpdates: Partial<Omit<Task, 'id' | 'projectId' | 'createdAt'>>) => {
-    const taskRef = ref(database, `tasks/${id}`);
-    // Firebase update doesn't play well with `undefined` for direct field removal in a shallow update.
-    // We need to construct the update object carefully.
-    const updatesToSend: any = { ...taskUpdates };
+    const taskDocRef = doc(db, 'tasks', id);
+    const updatesToSend: { [key: string]: any } = {};
 
-    if (taskUpdates.deadline === null || taskUpdates.deadline === undefined) {
-      updatesToSend.deadline = null; // Explicitly set to null to remove or keep undefined.
-    } else if (taskUpdates.deadline instanceof Date) {
-      updatesToSend.deadline = formatISO(taskUpdates.deadline, { representation: 'date' });
+    // Iterate over known updatable fields to build the updates object
+    if (taskUpdates.title !== undefined) updatesToSend.title = taskUpdates.title;
+    
+    if (taskUpdates.hasOwnProperty('description')) {
+      updatesToSend.description = taskUpdates.description || ""; // Allow clearing
     }
-    // Ensure comments are not accidentally overwritten if not part of updates
-    if (taskUpdates.comments === undefined) {
-      delete updatesToSend.comments; // Don't send comments if not changing
+
+    if (taskUpdates.status !== undefined) updatesToSend.status = taskUpdates.status;
+
+    if (taskUpdates.hasOwnProperty('deadline')) {
+      if (taskUpdates.deadline instanceof Date) {
+        updatesToSend.deadline = Timestamp.fromDate(taskUpdates.deadline);
+      } else if (taskUpdates.deadline === null) {
+        updatesToSend.deadline = null; // Explicitly set to null if cleared
+      } else if (typeof taskUpdates.deadline === 'string') { // Handle ISO string from state
+         updatesToSend.deadline = Timestamp.fromDate(parseISO(taskUpdates.deadline));
+      }
+      // If taskUpdates.deadline is undefined, it's not included, so field isn't changed.
     }
+    
+    // Comments are handled by addCommentToTask using arrayUnion.
+    // Avoid accidental overwrite of comments array if not explicitly passed.
+    if (taskUpdates.comments !== undefined) {
+      // This case should ideally not happen if comments are only managed by addCommentToTask.
+      // If it does, ensure timestamps are correct or handle appropriately.
+      // For now, we assume `addCommentToTask` is the primary way to modify comments.
+       updatesToSend.comments = taskUpdates.comments.map(c => ({
+        ...c,
+        createdAt: Timestamp.fromDate(parseISO(c.createdAt)) // Ensure comment createdAt is also Timestamp
+      }));
+    }
+
+
+    if (Object.keys(updatesToSend).length === 0) return; // No actual updates
 
     try {
-      await update(taskRef, updatesToSend);
+      await updateDoc(taskDocRef, updatesToSend);
     } catch (error) {
       console.error("Error updating task: ", error);
     }
   }, []);
   
   const deleteTask = useCallback(async (id: string) => {
+    const taskDocRef = doc(db, 'tasks', id);
     try {
-      await remove(ref(database, `tasks/${id}`));
+      await deleteDoc(taskDocRef);
     } catch (error) {
       console.error("Error deleting task: ", error);
     }
@@ -183,27 +244,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [tasks]);
   
   const moveTask = useCallback(async (taskId: string, newStatus: TaskStatus) => {
-    const taskRef = ref(database, `tasks/${taskId}`);
+    const taskDocRef = doc(db, 'tasks', taskId);
     try {
-      await update(taskRef, { status: newStatus });
+      await updateDoc(taskDocRef, { status: newStatus });
     } catch (error) {
       console.error("Error moving task: ", error);
     }
   }, []);
 
   const addCommentToTask = useCallback(async (taskId: string, commentText: string) => {
-    const taskRef = ref(database, `tasks/${taskId}`);
+    const taskDocRef = doc(db, 'tasks', taskId);
+    const newComment = {
+      id: crypto.randomUUID(),
+      text: commentText,
+      createdAt: Timestamp.fromDate(new Date()), // Store as Firestore Timestamp
+    };
     try {
-      const snapshot = await get(child(taskRef, 'comments'));
-      const existingComments: Comment[] = snapshot.val() || [];
-      
-      const newComment: Comment = {
-        id: crypto.randomUUID(), // Client-side generated ID for comments
-        text: commentText,
-        createdAt: formatISO(new Date()),
-      };
-      const updatedComments = [...existingComments, newComment];
-      await update(taskRef, { comments: updatedComments });
+      // arrayUnion adds the element if it's not already present.
+      // For comments, each is unique due to ID and timestamp.
+      await updateDoc(taskDocRef, {
+        comments: arrayUnion(newComment)
+      });
     } catch (error) {
       console.error("Error adding comment: ", error);
     }

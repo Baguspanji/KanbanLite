@@ -15,7 +15,8 @@ import { CreateProjectDialog } from '@/components/project/CreateProjectDialog';
 import { DeleteProjectDialog } from '@/components/project/DeleteProjectDialog';
 import { TaskListComponent } from '@/components/task/TaskList';
 import { TaskListSkeleton } from '@/components/task/TaskListSkeleton';
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import useLocalStorage from '@/hooks/useLocalStorage';
 
 
 export default function ProjectPage() {
@@ -23,24 +24,31 @@ export default function ProjectPage() {
   const router = useRouter();
   const { getProjectById, projects, isLoading: contextIsLoading } = useAppContext();
   const [project, setProject] = useState<Project | undefined | null>(undefined);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
-
+  
   const projectId = params.projectId as string;
+  
+  // Use localStorage for viewMode, specific to this project
+  const [viewMode, setViewMode] = useLocalStorage<'kanban' | 'list'>(
+    `kanbanlite-viewmode-${projectId}`, 
+    'kanban'
+  );
 
   useEffect(() => {
     if (projectId && projects.length > 0) {
       const foundProject = getProjectById(projectId);
       setProject(foundProject || null);
     } else if (projectId && !contextIsLoading && projects.length === 0) {
+      // This case handles when context is done loading but no projects were found (or not this one)
       setProject(null);
     }
+    // If contextIsLoading is true, project remains undefined, showing the skeleton.
   }, [projectId, getProjectById, projects, contextIsLoading]);
 
   const handleProjectDeleted = () => {
     router.push('/');
   };
 
-  if (project === undefined) {
+  if (project === undefined) { // Still determining if project exists or context is loading
     return (
       <div className="space-y-6">
         {/* Row 1: Project Info Skeletons + Edit/Delete Skeletons */}
@@ -64,7 +72,7 @@ export default function ProjectPage() {
           <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
         </div>
         
-        {/* Content Skeletons based on default viewMode */}
+        {/* Content Skeletons based on default viewMode (or persisted viewMode if available before skeleton shows) */}
         {viewMode === 'kanban' ? (
             <div className="flex gap-6 pb-4 overflow-x-auto">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
@@ -76,7 +84,7 @@ export default function ProjectPage() {
     );
   }
   
-  if (project === null && !contextIsLoading) {
+  if (project === null && !contextIsLoading) { // Context done loading, project confirmed not found
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold mb-4">Project Not Found</h2>
@@ -90,6 +98,7 @@ export default function ProjectPage() {
     );
   }
 
+  // Project is loaded
   return (
     <div className="space-y-6">
       {/* Main Header Area */}

@@ -2,35 +2,39 @@
 "use client";
 
 import type { Project, Task, TaskStatus, Comment } from '@/types';
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react'; // Added useState, useEffect
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { formatISO } from 'date-fns';
+import { database } from '@/lib/firebase';
+import { ref, onValue, set, push, update, remove, get, child } from 'firebase/database';
 
-type Theme = 'light' | 'dark'; // Added Theme type
+type Theme = 'light' | 'dark';
 
 interface AppContextType {
   projects: Project[];
   tasks: Task[];
-  theme: Theme; // Added theme
-  toggleTheme: () => void; // Added toggleTheme
-  addProject: (name: string, description?: string) => Project;
-  updateProject: (id: string, name: string, description?: string) => void;
-  deleteProject: (id: string) => void;
+  theme: Theme;
+  toggleTheme: () => void;
+  addProject: (name: string, description?: string) => Promise<Project | null>;
+  updateProject: (id: string, name: string, description?: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   getProjectById: (id: string) => Project | undefined;
-  addTask: (projectId: string, title: string, description?: string, deadline?: Date, status?: TaskStatus) => Task;
-  updateTask: (id: string, updates: Partial<Omit<Task, 'id' | 'projectId' | 'createdAt'>>) => void;
-  deleteTask: (id: string) => void;
+  addTask: (projectId: string, title: string, description?: string, deadline?: Date, status?: TaskStatus) => Promise<Task | null>;
+  updateTask: (id: string, updates: Partial<Omit<Task, 'id' | 'projectId' | 'createdAt'>>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   getTasksByProjectId: (projectId: string) => Task[];
-  moveTask: (taskId: string, newStatus: TaskStatus) => void;
-  addCommentToTask: (taskId: string, commentText: string) => void;
+  moveTask: (taskId: string, newStatus: TaskStatus) => Promise<void>;
+  addCommentToTask: (taskId: string, commentText: string) => Promise<void>;
+  isLoading: boolean; // To indicate data loading state
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [projects, setProjects] = useLocalStorage<Project[]>('kanbanlite-projects', []);
-  const [tasks, setTasks] = useLocalStorage<Task[]>('kanbanlite-tasks', []);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [theme, setTheme] = useLocalStorage<Theme>('kanbanlite-theme', 'light');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -42,37 +46,90 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const generateId = () => crypto.randomUUID();
+  // Firebase Listeners
+  useEffect(() => {
+    setIsLoading(true);
+    const projectsRef = ref(database, 'projects');
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedProjects = data ? Object.keys(data).map(key => ({ id: key, ...data[key] } as Project)) : [];
+      setProjects(loadedProjects);
+      if (tasks.length > 0 || !data) setIsLoading(false); // Only set loading to false if tasks also loaded or no projects
+    }, (error) => {
+      console.error("Error fetching projects: ", error);
+      setIsLoading(false);
+    });
 
-  const addProject = (name: string, description?: string): Project => {
-    const newProject: Project = {
-      id: generateId(),
+    const tasksRef = ref(database, 'tasks');
+    const unsubscribeTasks = onValue(tasksRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedTasks = data ? Object.keys(data).map(key => ({ id: key, ...data[key] } as Task)) : [];
+      setTasks(loadedTasks);
+      setIsLoading(false); // Set loading to false after tasks are loaded
+    }, (error) => {
+      console.error("Error fetching tasks: ", error);
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubscribeProjects();
+      unsubscribeTasks();
+    };
+  }, []); // Empty dependency array means this runs once on mount
+
+  const addProject = useCallback(async (name: string, description?: string): Promise<Project | null> => {
+    const newProjectRef = push(ref(database, 'projects'));
+    const newProject: Omit<Project, 'id'> = {
       name,
       description,
       createdAt: formatISO(new Date()),
     };
-    setProjects((prevProjects) => [...prevProjects, newProject]);
-    return newProject;
-  };
+    try {
+      await set(newProjectRef, newProject);
+      return { id: newProjectRef.key!, ...newProject };
+    } catch (error) {
+      console.error("Error adding project: ", error);
+      return null;
+    }
+  }, []);
 
-  const updateProject = (id: string, name: string, description?: string) => {
-    setProjects((prevProjects) =>
-      prevProjects.map((p) => (p.id === id ? { ...p, name, description: description ?? p.description } : p))
-    );
-  };
+  const updateProject = useCallback(async (id: string, name: string, description?: string) => {
+    const projectRef = ref(database, `projects/${id}`);
+    const updates: Partial<Project> = { name };
+    if (description !== undefined) {
+      updates.description = description;
+    }
+    try {
+      await update(projectRef, updates);
+    } catch (error) {
+      console.error("Error updating project: ", error);
+    }
+  }, []);
 
-  const deleteProject = (id: string) => {
-    setProjects((prevProjects) => prevProjects.filter((p) => p.id !== id));
-    setTasks((prevTasks) => prevTasks.filter((t) => t.projectId !== id));
-  };
+  const deleteProject = useCallback(async (id: string) => {
+    // First, delete all tasks associated with this project
+    const tasksToDelete = tasks.filter(task => task.projectId === id);
+    const deletePromises: Promise<void>[] = [];
+    tasksToDelete.forEach(task => {
+      deletePromises.push(remove(ref(database, `tasks/${task.id}`)));
+    });
 
-  const getProjectById = (id: string): Project | undefined => {
+    try {
+      await Promise.all(deletePromises);
+      // Then, delete the project itself
+      await remove(ref(database, `projects/${id}`));
+    } catch (error) {
+      console.error("Error deleting project and its tasks: ", error);
+    }
+  }, [tasks]); // Include tasks in dependency array
+
+  const getProjectById = useCallback((id: string): Project | undefined => {
     return projects.find((p) => p.id === id);
-  };
+  }, [projects]);
 
-  const addTask = (projectId: string, title: string, description?: string, deadline?: Date, status: TaskStatus = 'To Do'): Task => {
-    const newTask: Task = {
-      id: generateId(),
+  const addTask = useCallback(async (projectId: string, title: string, description?: string, deadline?: Date, status: TaskStatus = 'To Do'): Promise<Task | null> => {
+    const newTaskRef = push(ref(database, 'tasks'));
+    const newTaskData: Omit<Task, 'id'> = {
       projectId,
       title,
       description,
@@ -81,60 +138,76 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       createdAt: formatISO(new Date()),
       comments: [],
     };
-    setTasks((prevTasks) => [...prevTasks, newTask]);
-    return newTask;
-  };
+    try {
+      await set(newTaskRef, newTaskData);
+      return { id: newTaskRef.key!, ...newTaskData };
+    } catch (error) {
+      console.error("Error adding task: ", error);
+      return null;
+    }
+  }, []);
 
-  const updateTask = (id: string, updates: Partial<Omit<Task, 'id' | 'projectId' | 'createdAt'>>) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) => {
-        if (task.id === id) {
-          const updatedTask = { ...task, ...updates };
-          if (updates.deadline === null) { 
-            updatedTask.deadline = undefined;
-          } else if (updates.deadline instanceof Date) {
-            updatedTask.deadline = formatISO(updates.deadline, { representation: 'date' });
-          }
-          if (!updates.comments && task.comments) {
-            updatedTask.comments = task.comments;
-          }
-          return updatedTask;
-        }
-        return task;
-      })
-    );
-  };
+  const updateTask = useCallback(async (id: string, taskUpdates: Partial<Omit<Task, 'id' | 'projectId' | 'createdAt'>>) => {
+    const taskRef = ref(database, `tasks/${id}`);
+    // Firebase update doesn't play well with `undefined` for direct field removal in a shallow update.
+    // We need to construct the update object carefully.
+    const updatesToSend: any = { ...taskUpdates };
+
+    if (taskUpdates.deadline === null || taskUpdates.deadline === undefined) {
+      updatesToSend.deadline = null; // Explicitly set to null to remove or keep undefined.
+    } else if (taskUpdates.deadline instanceof Date) {
+      updatesToSend.deadline = formatISO(taskUpdates.deadline, { representation: 'date' });
+    }
+    // Ensure comments are not accidentally overwritten if not part of updates
+    if (taskUpdates.comments === undefined) {
+      delete updatesToSend.comments; // Don't send comments if not changing
+    }
+
+    try {
+      await update(taskRef, updatesToSend);
+    } catch (error) {
+      console.error("Error updating task: ", error);
+    }
+  }, []);
   
-  const deleteTask = (id: string) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
-  };
+  const deleteTask = useCallback(async (id: string) => {
+    try {
+      await remove(ref(database, `tasks/${id}`));
+    } catch (error) {
+      console.error("Error deleting task: ", error);
+    }
+  }, []);
 
-  const getTasksByProjectId = (projectId: string): Task[] => {
+  const getTasksByProjectId = useCallback((projectId: string): Task[] => {
     return tasks.filter((task) => task.projectId === projectId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  };
+  }, [tasks]);
   
-  const moveTask = (taskId: string, newStatus: TaskStatus) => {
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
-  };
+  const moveTask = useCallback(async (taskId: string, newStatus: TaskStatus) => {
+    const taskRef = ref(database, `tasks/${taskId}`);
+    try {
+      await update(taskRef, { status: newStatus });
+    } catch (error) {
+      console.error("Error moving task: ", error);
+    }
+  }, []);
 
-  const addCommentToTask = (taskId: string, commentText: string) => {
-    const newComment: Comment = {
-      id: generateId(),
-      text: commentText,
-      createdAt: formatISO(new Date()),
-    };
-    setTasks(prevTasks =>
-      prevTasks.map(t =>
-        t.id === taskId
-          ? { ...t, comments: [...(t.comments || []), newComment] }
-          : t
-      )
-    );
-  };
+  const addCommentToTask = useCallback(async (taskId: string, commentText: string) => {
+    const taskRef = ref(database, `tasks/${taskId}`);
+    try {
+      const snapshot = await get(child(taskRef, 'comments'));
+      const existingComments: Comment[] = snapshot.val() || [];
+      
+      const newComment: Comment = {
+        id: crypto.randomUUID(), // Client-side generated ID for comments
+        text: commentText,
+        createdAt: formatISO(new Date()),
+      };
+      const updatedComments = [...existingComments, newComment];
+      await update(taskRef, { comments: updatedComments });
+    } catch (error) {
+      console.error("Error adding comment: ", error);
+    }
+  }, []);
 
   return (
     <AppContext.Provider
@@ -142,6 +215,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         projects,
         tasks,
         theme,
+        isLoading,
         toggleTheme,
         addProject,
         updateProject,

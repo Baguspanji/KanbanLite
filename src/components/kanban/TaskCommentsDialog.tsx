@@ -30,7 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAppContext } from "@/context/AppContext";
 import type { Task, Comment } from "@/types";
-import { Send, Paperclip, XCircle, UploadCloud, Edit2, Trash2, FileText } from "lucide-react";
+import { Send, Paperclip, XCircle, UploadCloud, Edit2, Trash2, FileText, Image as ImageIcon } from "lucide-react";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/firebase";
@@ -50,6 +50,13 @@ interface TaskCommentsDialogProps {
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 const CONVERTIBLE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+const IMAGE_EXTENSIONS = ['.webp', '.jpg', '.jpeg', '.png', '.gif'];
+
+function isImageFile(fileName?: string): boolean {
+  if (!fileName) return false;
+  const extension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+  return IMAGE_EXTENSIONS.includes(extension);
+}
 
 // Helper function to convert file to WebP
 async function convertToWebP(file: File, quality = 0.8): Promise<File> {
@@ -96,14 +103,16 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false); // Covers upload and comment posting/updating
-  const [isConvertingFile, setIsConvertingFile] = useState(false); // For image conversion
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isConvertingFile, setIsConvertingFile] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [currentAttachmentName, setCurrentAttachmentName] = useState<string | null>(null);
   const [attachmentAction, setAttachmentAction] = useState<'keep' | 'remove' | 'replace'>('keep');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
 
   const form = useForm<CommentFormValues>({
@@ -113,10 +122,31 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Cleanup object URL on unmount or when a new one is created
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) {
       resetFormAndState();
     }
   }, [isOpen, task]);
+
+  const revokeCurrentImagePreview = () => {
+    if (imagePreviewUrl && imagePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setImagePreviewUrl(null);
+    if (objectUrlRef.current) {
+       URL.revokeObjectURL(objectUrlRef.current);
+       objectUrlRef.current = null;
+    }
+  };
 
   const resetFormAndState = () => {
     form.reset({ text: "" });
@@ -128,12 +158,14 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     setEditingComment(null);
     setCurrentAttachmentName(null);
     setAttachmentAction('keep');
+    revokeCurrentImagePreview();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    revokeCurrentImagePreview();
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
@@ -141,56 +173,70 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         setAttachmentAction(editingComment?.fileURL ? 'keep' : 'remove');
+        if (editingComment?.fileURL && isImageFile(editingComment.fileName)) {
+            setImagePreviewUrl(editingComment.fileURL); // Restore preview if keeping old file
+        }
         return;
       }
       setFileError(null);
 
+      let processedFile = file;
       if (CONVERTIBLE_IMAGE_TYPES.includes(file.type)) {
         setIsConvertingFile(true);
         try {
-          const webpFile = await convertToWebP(file);
-          setSelectedFile(webpFile);
-          setCurrentAttachmentName(webpFile.name);
-          setAttachmentAction('replace');
+          processedFile = await convertToWebP(file);
         } catch (conversionError) {
           console.error("Error converting to WebP:", conversionError);
           setFileError("Failed to convert image. Original file will be used.");
-          setSelectedFile(file); // Fallback to original
-          setCurrentAttachmentName(file.name);
-          setAttachmentAction('replace');
+          // processedFile remains the original file
         } finally {
           setIsConvertingFile(false);
         }
-      } else {
-        setSelectedFile(file);
-        setCurrentAttachmentName(file.name);
-        setAttachmentAction('replace');
       }
-    } else {
-      if (editingComment?.fileURL && attachmentAction !== 'remove') {
-         setAttachmentAction('keep');
+      
+      setSelectedFile(processedFile);
+      setCurrentAttachmentName(processedFile.name);
+      setAttachmentAction('replace');
+      if (isImageFile(processedFile.name)) {
+        const newObjectUrl = URL.createObjectURL(processedFile);
+        setImagePreviewUrl(newObjectUrl);
+        objectUrlRef.current = newObjectUrl;
       }
+
+    } else { // No file selected
       setSelectedFile(null);
-      // If editing and file input is cleared, but we want to keep the existing attachment,
-      // currentAttachmentName should not be nulled unless explicitly removing.
-      // This logic is handled by not setting currentAttachmentName to null here.
+      // If editing and we had an attachment, decide whether to keep or clear preview
+      if (editingComment?.fileURL && attachmentAction !== 'remove') {
+        setAttachmentAction('keep');
+        if(isImageFile(editingComment.fileName)) {
+          setImagePreviewUrl(editingComment.fileURL);
+        }
+      } else {
+        // No file selected, and not keeping an old one.
+        setCurrentAttachmentName(null); // Clear name if truly no file
+      }
     }
   };
 
   const handleRemoveCurrentAttachment = () => {
+    revokeCurrentImagePreview();
     setCurrentAttachmentName(null);
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setAttachmentAction('remove');
-    setFileError(null); // Clear file error if attachment is removed
+    setFileError(null);
   };
 
   const handleStartEdit = (comment: Comment) => {
+    revokeCurrentImagePreview();
     setEditingComment(comment);
     form.setValue("text", comment.text);
     if (comment.fileURL && comment.fileName) {
       setCurrentAttachmentName(comment.fileName);
       setAttachmentAction('keep');
+      if (isImageFile(comment.fileName)) {
+        setImagePreviewUrl(comment.fileURL); // Show existing image
+      }
     } else {
       setCurrentAttachmentName(null);
       setAttachmentAction('remove');
@@ -198,7 +244,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setFileError(null);
-    setIsConvertingFile(false); // Ensure conversion state is reset
+    setIsConvertingFile(false);
   };
 
   const handleCancelEdit = () => {
@@ -218,7 +264,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         }
         setUploadProgress(0);
         const storagePath = `task_attachments/${task.id}/${Date.now()}_${selectedFile.name}`;
-        const fileStorageRefInstance = storageRefFB(storage, storagePath); // Use renamed import
+        const fileStorageRefInstance = storageRefFB(storage, storagePath);
         const uploadTask = uploadBytesResumable(fileStorageRefInstance, selectedFile);
 
         await new Promise<void>((resolve, reject) => {
@@ -247,9 +293,9 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         fileName = undefined;
       }
 
-      if (oldFileToDelete) {
+      if (oldFileToDelete && oldFileToDelete !== fileURL) { // Ensure not deleting the same file if URL didn't change
         try {
-          const oldFileRef = storageRefFB(storage, oldFileToDelete); // Use renamed import
+          const oldFileRef = storageRefFB(storage, oldFileToDelete);
           await deleteObject(oldFileRef);
         } catch (deleteError) {
           console.error("Failed to delete old attachment:", deleteError);
@@ -280,7 +326,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     return [...task.comments].sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [task.comments]);
 
-  const submitButtonDisabled = isProcessing || isConvertingFile || !form.formState.isValid || (!!fileError && attachmentAction !== 'remove' && !selectedFile); // Allow submit if error is for a file that's being removed
+  const submitButtonDisabled = isProcessing || isConvertingFile || !form.formState.isValid || (!!fileError && attachmentAction !== 'remove' && !selectedFile);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -303,15 +349,27 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                       <div className="p-3 rounded-md border bg-card shadow-sm">
                         <p className="text-sm text-foreground whitespace-pre-wrap break-words">{comment.text}</p>
                         {comment.fileURL && comment.fileName && (
-                          <a
-                            href={comment.fileURL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center text-sm text-primary hover:underline"
-                          >
-                            <Paperclip className="mr-1.5 h-4 w-4 flex-shrink-0" />
-                            {comment.fileName}
-                          </a>
+                          <div className="mt-2">
+                            {isImageFile(comment.fileName) ? (
+                              <a href={comment.fileURL} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                                <img 
+                                  src={comment.fileURL} 
+                                  alt={comment.fileName} 
+                                  className="max-h-40 max-w-full rounded-md border object-contain" 
+                                  data-ai-hint="attachment preview"
+                                />
+                              </a>
+                            ) : null}
+                            <a
+                              href={comment.fileURL}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-sm text-primary hover:underline"
+                            >
+                              {isImageFile(comment.fileName) ? <ImageIcon className="mr-1.5 h-4 w-4 flex-shrink-0" /> : <Paperclip className="mr-1.5 h-4 w-4 flex-shrink-0" />}
+                              {comment.fileName}
+                            </a>
+                          </div>
                         )}
                         <div className="flex justify-between items-center mt-1.5">
                             <p className="text-xs text-muted-foreground">
@@ -376,13 +434,26 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
               </div>
               {currentAttachmentName && attachmentAction === 'keep' && !selectedFile && (
                  <Badge variant="outline" className="mt-1 text-xs py-1 px-2 font-normal flex items-center gap-1.5">
-                    <FileText className="h-3 w-3" /> Currently attached: {currentAttachmentName}
+                    {isImageFile(currentAttachmentName) ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />} 
+                    Currently attached: {currentAttachmentName}
                  </Badge>
               )}
               {selectedFile && (
                 <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>
               )}
               {fileError && <FormMessage>{fileError}</FormMessage>}
+              
+              {imagePreviewUrl && (selectedFile || (currentAttachmentName && attachmentAction === 'keep')) && isImageFile(selectedFile?.name || currentAttachmentName) && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+                  <img 
+                    src={imagePreviewUrl} 
+                    alt="Selected file preview" 
+                    className="max-h-32 max-w-full rounded-md border object-contain" 
+                    data-ai-hint="preview image"
+                  />
+                </div>
+              )}
             </FormItem>
 
             {isConvertingFile && (

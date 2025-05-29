@@ -65,10 +65,10 @@ export function TaskListItem({ task, projectId }: TaskListItemProps) {
           <TaskCommentsDialog
             task={task}
             triggerButton={
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8 relative">
                 <MessageSquare className="h-4 w-4" />
                 {task.comments && task.comments.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                  <span className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                     {task.comments.length}
                   </span>
                 )}

@@ -59,7 +59,7 @@ export default function ProjectPage() {
         </div>
 
         {/* Row 2: View Toggle and Add Task Skeletons */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2 border-t border-border/50 mt-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-3 pt-2 border-t border-border/50 mt-4">
           <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
           <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
         </div>
@@ -129,7 +129,7 @@ export default function ProjectPage() {
         </div>
 
         {/* Row 2: View Toggle & Add Task Button (Now under Project Info) */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-3 border-t border-border/50 mt-3"> {/* Adjusted pt and mt for spacing */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-3 pt-3 border-t border-border/50 mt-3">
           <ToggleGroup 
             type="single" 
             value={viewMode} 
@@ -150,7 +150,7 @@ export default function ProjectPage() {
             projectId={projectId}
             defaultStatus="To Do" 
             triggerButton={
-              <Button variant="outline" className="w-full sm:w-auto"> {/* Was Button variant="default" */}
+              <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Task
               </Button>
             }

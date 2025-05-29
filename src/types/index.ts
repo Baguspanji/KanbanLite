@@ -7,6 +7,7 @@ export interface Comment {
   id: string;
   text: string;
   createdAt: string; // Store as ISO string
+  updatedAt?: string; // Store as ISO string, optional
   fileURL?: string; // URL of the uploaded file in Firebase Storage
   fileName?: string; // Original name of the uploaded file
   // Future: userId?: string; userName?: string;

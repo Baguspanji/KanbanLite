@@ -13,8 +13,8 @@ import type { Project } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreateProjectDialog } from '@/components/project/CreateProjectDialog';
 import { DeleteProjectDialog } from '@/components/project/DeleteProjectDialog';
-import { TaskListComponent } from '@/components/task/TaskList'; // New import
-import { TaskListSkeleton } from '@/components/task/TaskListSkeleton'; // New import
+import { TaskListComponent } from '@/components/task/TaskList';
+import { TaskListSkeleton } from '@/components/task/TaskListSkeleton';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 
@@ -43,19 +43,27 @@ export default function ProjectPage() {
   if (isLoading && project === undefined) { // Initial loading state for project details
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-1/4" />
-        <Skeleton className="h-10 w-3/4" /> {/* Project Name */}
-        <Skeleton className="h-6 w-full" /> {/* Project Description */}
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-10 w-24" /> {/* View toggle placeholder */}
-          <Skeleton className="h-10 w-36" /> {/* Add Task button placeholder */}
+        {/* Project Info Skeletons */}
+        <div className="flex-grow">
+            <Skeleton className="h-8 w-1/4 mb-2" /> {/* Back Button placeholder */}
+            <Skeleton className="h-10 w-3/4 mb-1" /> {/* Project Name */}
+            <Skeleton className="h-5 w-full mb-4" /> {/* Project Description */}
         </div>
-        {/* Placeholder for content based on viewMode can be added here if needed */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
+        
+        {/* Right Aligned Controls Skeleton */}
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full">
+            <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
+            <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
         </div>
+        
+        {/* Content Skeletons */}
+        {viewMode === 'kanban' ? (
+            <div className="flex gap-6 pb-4 overflow-x-auto">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
+            </div>
+        ) : (
+          <TaskListSkeleton />
+        )}
       </div>
     );
   }
@@ -74,23 +82,25 @@ export default function ProjectPage() {
     );
   }
   
-  // If project is defined, or still loading but project is not undefined (meaning context is still loading tasks/etc)
   if (!project && isLoading) {
      // If project data is not yet available but context is loading, show project info skeletons + view skeletons
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-1/4" />
-        <Skeleton className="h-10 w-3/4 mb-1" />
-        <Skeleton className="h-5 w-full mb-4" />
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <Skeleton className="h-10 w-40" /> {/* View Toggle */}
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-             <Skeleton className="h-10 w-32" /> {/* Add Task */}
-             <Skeleton className="h-10 w-32" /> {/* Edit Project */}
-             <Skeleton className="h-10 w-36" /> {/* Delete Project */}
-          </div>
+        {/* Project Info Skeletons */}
+        <div className="flex-grow">
+            <Skeleton className="h-8 w-1/4 mb-2" />
+            <Skeleton className="h-10 w-3/4 mb-1" />
+            <Skeleton className="h-5 w-full mb-4" />
         </div>
+        
+        {/* Right Aligned Controls Skeleton */}
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full">
+            <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
+            <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
+            <Skeleton className="h-10 w-32" /> {/* Edit Project button placeholder */}
+            <Skeleton className="h-10 w-36" /> {/* Delete Project button placeholder */}
+        </div>
+
         {viewMode === 'kanban' ? (
             <div className="flex gap-6 pb-4 overflow-x-auto">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
@@ -109,7 +119,10 @@ export default function ProjectPage() {
 
   return (
     <div className="space-y-6">
+      {/* Main Header Row: Project Info (Left) and Controls (Right) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        
+        {/* Left Side: Project Info & Back Button */}
         <div className="flex-grow">
           <Button variant="ghost" size="sm" asChild className="mb-2 -ml-3 sm:-ml-2">
             <Link href="/">
@@ -121,10 +134,30 @@ export default function ProjectPage() {
             <p className="text-muted-foreground mt-1 max-w-2xl break-words">{project.description}</p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto self-start sm:self-auto mt-4 md:mt-0 flex-shrink-0">
+        
+        {/* Right Side: Controls (Toggle Group + Action Buttons) */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
+          {/* View Toggle Group */}
+          <ToggleGroup 
+            type="single" 
+            value={viewMode} 
+            onValueChange={(value) => { if (value) setViewMode(value as 'kanban' | 'list'); }}
+            className="border bg-background rounded-md p-1 flex-shrink-0"
+          >
+            <ToggleGroupItem value="kanban" aria-label="Kanban view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-2.5 sm:px-3">
+              <LayoutGrid className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Kanban</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-2.5 sm:px-3">
+              <ListFilter className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">List</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          {/* Action Buttons */}
            <CreateTaskDialog
             projectId={projectId}
-            defaultStatus="To Do" // Default for general add task button
+            defaultStatus="To Do" 
             triggerButton={
               <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Task
@@ -146,25 +179,8 @@ export default function ProjectPage() {
            } />
         </div>
       </div>
-
-      <div className="flex justify-start items-center gap-2 mb-6">
-         <ToggleGroup 
-            type="single" 
-            value={viewMode} 
-            onValueChange={(value) => { if (value) setViewMode(value as 'kanban' | 'list'); }}
-            className="border bg-background rounded-md p-1"
-          >
-            <ToggleGroupItem value="kanban" aria-label="Kanban view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-              <LayoutGrid className="h-4 w-4 mr-0 sm:mr-2" />
-              <span className="hidden sm:inline">Kanban</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-              <ListFilter className="h-4 w-4 mr-0 sm:mr-2" />
-              <span className="hidden sm:inline">List</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-      </div>
       
+      {/* Content Area based on viewMode */}
       {isLoading && (viewMode === 'kanban') && <KanbanBoard projectId={projectId} />} 
       {isLoading && (viewMode === 'list') && <TaskListSkeleton />} 
 

@@ -1,14 +1,18 @@
 
 "use client";
 
-import type { Project, Task, TaskStatus, Comment } from '@/types'; // Added Comment
-import React, { createContext, useContext, ReactNode } from 'react';
+import type { Project, Task, TaskStatus, Comment } from '@/types';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react'; // Added useState, useEffect
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { formatISO } from 'date-fns';
+
+type Theme = 'light' | 'dark'; // Added Theme type
 
 interface AppContextType {
   projects: Project[];
   tasks: Task[];
+  theme: Theme; // Added theme
+  toggleTheme: () => void; // Added toggleTheme
   addProject: (name: string, description?: string) => Project;
   updateProject: (id: string, name: string, description?: string) => void;
   deleteProject: (id: string) => void;
@@ -18,7 +22,7 @@ interface AppContextType {
   deleteTask: (id: string) => void;
   getTasksByProjectId: (projectId: string) => Task[];
   moveTask: (taskId: string, newStatus: TaskStatus) => void;
-  addCommentToTask: (taskId: string, commentText: string) => void; // Added this line
+  addCommentToTask: (taskId: string, commentText: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -26,6 +30,17 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useLocalStorage<Project[]>('kanbanlite-projects', []);
   const [tasks, setTasks] = useLocalStorage<Task[]>('kanbanlite-tasks', []);
+  const [theme, setTheme] = useLocalStorage<Theme>('kanbanlite-theme', 'light');
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
 
   const generateId = () => crypto.randomUUID();
 
@@ -48,7 +63,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteProject = (id: string) => {
     setProjects((prevProjects) => prevProjects.filter((p) => p.id !== id));
-    setTasks((prevTasks) => prevTasks.filter((t) => t.projectId !== id)); // Also delete associated tasks
+    setTasks((prevTasks) => prevTasks.filter((t) => t.projectId !== id));
   };
 
   const getProjectById = (id: string): Project | undefined => {
@@ -64,7 +79,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deadline: deadline ? formatISO(deadline, { representation: 'date' }) : undefined,
       status,
       createdAt: formatISO(new Date()),
-      comments: [], // Initialize comments array
+      comments: [],
     };
     setTasks((prevTasks) => [...prevTasks, newTask]);
     return newTask;
@@ -80,7 +95,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           } else if (updates.deadline instanceof Date) {
             updatedTask.deadline = formatISO(updates.deadline, { representation: 'date' });
           }
-          // Ensure comments are preserved if not part of updates
           if (!updates.comments && task.comments) {
             updatedTask.comments = task.comments;
           }
@@ -127,6 +141,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       value={{
         projects,
         tasks,
+        theme,
+        toggleTheme,
         addProject,
         updateProject,
         deleteProject,
@@ -136,7 +152,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         deleteTask,
         getTasksByProjectId,
         moveTask,
-        addCommentToTask, // Added this
+        addCommentToTask,
       }}
     >
       {children}

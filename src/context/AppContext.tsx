@@ -158,7 +158,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const fileDeletionPromises: Promise<void>[] = [];
 
       for (const taskDoc of tasksSnapshot.docs) {
-        const taskData = taskDoc.data(); // Firestore DocumentData
+        const taskData = taskDoc.data(); 
         if (taskData.comments && Array.isArray(taskData.comments)) {
           for (const comment of taskData.comments) {
             if (comment.fileURL && typeof comment.fileURL === 'string') {
@@ -169,27 +169,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     const fileRef = storageRefFB(storage, comment.fileURL);
                     await deleteObject(fileRef);
                   } catch (err) {
+                    // Log error but continue, as failure to delete one file shouldn't block project deletion
                     console.error(`Project ${id}, Task ${taskDoc.id}: Error deleting attachment ${comment.fileURL}:`, err);
-                    // Decide if this error should prevent project deletion. Usually not.
                   }
                 })()
               );
             }
           }
         }
-        batch.delete(taskDoc.ref); // Add task deletion to batch
+        batch.delete(taskDoc.ref); 
       }
-
-      // Wait for all file deletion attempts to settle
+      
       if (fileDeletionPromises.length > 0) {
+        console.log(`Project ${id}: Waiting for ${fileDeletionPromises.length} attachment deletion attempts to settle.`);
         await Promise.allSettled(fileDeletionPromises);
         console.log(`Project ${id}: All attachment deletion attempts for its tasks have been processed.`);
       }
       
-      batch.delete(projectDocRef); // Add project deletion to batch
-      await batch.commit(); // Commit all batched operations
+      batch.delete(projectDocRef); 
+      await batch.commit(); 
+      console.log(`Project ${id} and its tasks successfully deleted.`);
     } catch (error) {
       console.error(`Error deleting project ${id} and its tasks: `, error);
+      // Re-throw or handle as appropriate for UI feedback
+      throw error;
     }
   }, []);
 
@@ -244,11 +247,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (taskUpdates.comments !== undefined) {
-       updatesToSend.comments = taskUpdates.comments.map(c => ({
-        ...c,
-        createdAt: c.createdAt instanceof Timestamp ? c.createdAt : Timestamp.fromDate(parseISO(c.createdAt)),
-        updatedAt: c.updatedAt ? (c.updatedAt instanceof Timestamp ? c.updatedAt : Timestamp.fromDate(parseISO(c.updatedAt))) : undefined,
-      }));
+       updatesToSend.comments = taskUpdates.comments.map(c => {
+        const firestoreComment: any = {
+          id: c.id,
+          text: c.text,
+          createdAt: c.createdAt instanceof Timestamp ? c.createdAt : Timestamp.fromDate(parseISO(c.createdAt)),
+        };
+        if (c.updatedAt) {
+          firestoreComment.updatedAt = c.updatedAt instanceof Timestamp ? c.updatedAt : Timestamp.fromDate(parseISO(c.updatedAt));
+        }
+        if (c.fileURL !== undefined) {
+          firestoreComment.fileURL = c.fileURL;
+        }
+        if (c.fileName !== undefined) {
+          firestoreComment.fileName = c.fileName;
+        }
+        return firestoreComment;
+      });
     }
 
     if (Object.keys(updatesToSend).length === 0) return;
@@ -265,8 +280,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
-        const taskData = taskSnap.data() as Task; // Local Task type which has comments typed
-        if (taskData.comments && taskData.comments.length > 0) {
+        const taskData = taskSnap.data(); // Firestore DocumentData, not local Task type
+        // Ensure comments is an array and has items before processing
+        if (taskData.comments && Array.isArray(taskData.comments) && taskData.comments.length > 0) {
           const fileDeletionPromises: Promise<void>[] = [];
           console.log(`Task ${id}: Preparing to delete attachments for ${taskData.comments.length} comment(s).`);
           for (const comment of taskData.comments) {
@@ -277,24 +293,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   try {
                     const fileRef = storageRefFB(storage, comment.fileURL);
                     await deleteObject(fileRef);
-                  } catch (err) {
-                    console.error(`Task ${id}: Error deleting attachment ${comment.fileURL}:`, err);
+                    console.log(`Task ${id}: Successfully deleted attachment ${comment.fileURL}`);
+                  } catch (err: any) {
+                    // Log specific Firebase Storage errors if possible
+                    if (err.code === 'storage/object-not-found') {
+                      console.warn(`Task ${id}: Attachment ${comment.fileURL} not found in Firebase Storage. Skipping deletion.`);
+                    } else {
+                      console.error(`Task ${id}: Error deleting attachment ${comment.fileURL}:`, err);
+                    }
                   }
                 })()
               );
             }
           }
           if (fileDeletionPromises.length > 0) {
+            console.log(`Task ${id}: Waiting for ${fileDeletionPromises.length} attachment deletion attempts to settle.`);
             await Promise.allSettled(fileDeletionPromises);
             console.log(`Task ${id}: All attachment deletion attempts have been processed.`);
           }
+        } else {
+          console.log(`Task ${id}: No comments with attachments found or comments array is empty.`);
         }
       } else {
-        console.warn(`Task ${id} not found for attachment deletion.`);
+        console.warn(`Task ${id} not found for attachment deletion checks.`);
       }
       await deleteDoc(taskDocRef);
+      console.log(`Task ${id} successfully deleted from Firestore.`);
     } catch (error) {
       console.error(`Error deleting task ${id}: `, error);
+      throw error;
     }
   }, []);
 
@@ -313,21 +340,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addCommentToTask = useCallback(async (taskId: string, commentData: CommentData) => {
     const taskDocRef = doc(db, 'tasks', taskId);
-    const newComment: Comment = {
+    
+    // Construct the comment object for Firestore, ensuring no undefined fields
+    const commentPayloadForFirestore: {
+      id: string;
+      text: string;
+      createdAt: Timestamp;
+      fileURL?: string;
+      fileName?: string;
+    } = {
       id: crypto.randomUUID(),
       text: commentData.text,
-      createdAt: Timestamp.fromDate(new Date()).toDate().toISOString(),
-      fileURL: commentData.fileURL,
-      fileName: commentData.fileName,
+      createdAt: Timestamp.fromDate(new Date()), // Use server timestamp for createdAt
     };
 
+    if (commentData.fileURL !== undefined) {
+      commentPayloadForFirestore.fileURL = commentData.fileURL;
+    }
+    if (commentData.fileName !== undefined) {
+      commentPayloadForFirestore.fileName = commentData.fileName;
+    }
+
     try {
-      const commentForFirestore = {
-        ...newComment,
-        createdAt: Timestamp.fromDate(parseISO(newComment.createdAt)),
-      };
       await updateDoc(taskDocRef, {
-        comments: arrayUnion(commentForFirestore)
+        comments: arrayUnion(commentPayloadForFirestore)
       });
     } catch (error) {
       console.error("Error adding comment: ", error);
@@ -345,10 +381,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
         const taskData = taskSnap.data();
-        let comments = (taskData.comments || []).map((c: any) => ({ // Map Firestore data to local Comment structure
-          ...c,
+        // Map Firestore comment data to local Comment structure (with string dates)
+        let comments = (taskData.comments || []).map((c: any) => ({ 
+          id: c.id,
+          text: c.text,
           createdAt: c.createdAt instanceof Timestamp ? c.createdAt.toDate().toISOString() : c.createdAt,
           updatedAt: c.updatedAt instanceof Timestamp ? c.updatedAt.toDate().toISOString() : c.updatedAt,
+          fileURL: c.fileURL,
+          fileName: c.fileName,
         })) as Comment[];
         
         const commentIndex = comments.findIndex(c => c.id === commentId);
@@ -356,22 +396,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (commentIndex > -1) {
           const oldComment = comments[commentIndex];
           
-          const updatedCommentObject: Comment = {
+          // Create the updated local comment object
+          const updatedLocalComment: Comment = {
             ...oldComment,
             text: updatedCommentData.text,
-            fileURL: updatedCommentData.fileURL,
-            fileName: updatedCommentData.fileName,
+            fileURL: updatedCommentData.fileURL, // This can be undefined if removed
+            fileName: updatedCommentData.fileName, // This can be undefined if removed
             updatedAt: Timestamp.fromDate(new Date()).toDate().toISOString(),
           };
           
-          comments[commentIndex] = updatedCommentObject;
+          comments[commentIndex] = updatedLocalComment;
 
-          // Convert back to Firestore Timestamps before updating
-          const commentsForFirestore = comments.map(c => ({
-            ...c,
-            createdAt: Timestamp.fromDate(parseISO(c.createdAt)),
-            updatedAt: c.updatedAt ? Timestamp.fromDate(parseISO(c.updatedAt)) : undefined,
-          }));
+          // Convert the entire comments array back to Firestore format,
+          // carefully omitting undefined optional fields.
+          const commentsForFirestore = comments.map(c_local => {
+            const firestoreComment: any = {
+              id: c_local.id,
+              text: c_local.text,
+              createdAt: Timestamp.fromDate(parseISO(c_local.createdAt)),
+            };
+            if (c_local.updatedAt) { 
+              firestoreComment.updatedAt = Timestamp.fromDate(parseISO(c_local.updatedAt));
+            }
+            if (c_local.fileURL !== undefined) { 
+              firestoreComment.fileURL = c_local.fileURL;
+            }
+            if (c_local.fileName !== undefined) { 
+              firestoreComment.fileName = c_local.fileName;
+            }
+            return firestoreComment;
+          });
 
           await updateDoc(taskDocRef, { comments: commentsForFirestore });
         } else {
@@ -422,3 +476,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+

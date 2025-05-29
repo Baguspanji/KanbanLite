@@ -3,10 +3,8 @@
 
 import type { Task, TaskStatus } from "@/types";
 import { TaskCard } from "./TaskCard";
-// CreateTaskDialog import is removed as it's no longer used here
 import { ScrollArea } from "@/components/ui/scroll-area";
-// PlusCircle import is removed
-// Button import is removed
+import { Droppable } from 'react-beautiful-dnd';
 
 interface KanbanColumnProps {
   title: TaskStatus;
@@ -28,21 +26,33 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
   return (
     <div className={`flex flex-col rounded-lg shadow-sm border min-h-[300px] h-full ${columnBackgroundColor()}`}>
       <div className="p-4 border-b sticky top-0 bg-inherit rounded-t-lg z-10">
-        <div className="flex justify-between items-center"> {/* Removed mb-1 from here */}
+        <div className="flex justify-between items-center">
           <h3 className="font-semibold text-base text-foreground">{title}</h3>
            <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{tasks.length}</span>
         </div>
-         {/* CreateTaskDialog and its trigger button for adding task directly to column are removed */}
       </div>
-      <ScrollArea className="flex-grow p-4 pt-2">
-        {tasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center pt-10">No tasks yet.</p>
-        ) : (
-          tasks.map((task) => (
-            <TaskCard key={task.id} task={task} projectId={projectId} />
-          ))
+      <Droppable droppableId={title} type="TASK">
+        {(provided, snapshot) => (
+          <ScrollArea 
+            className={`flex-grow p-4 pt-2 transition-colors duration-200 ease-in-out ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
+          >
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className="min-h-[100px]" // Ensure droppable area has some height even when empty
+            >
+              {tasks.length === 0 ? (
+                 !snapshot.isDraggingOver && <p className="text-sm text-muted-foreground text-center pt-10">No tasks yet.</p>
+              ) : (
+                tasks.map((task, index) => (
+                  <TaskCard key={task.id} task={task} projectId={projectId} index={index} />
+                ))
+              )}
+              {provided.placeholder}
+            </div>
+          </ScrollArea>
         )}
-      </ScrollArea>
+      </Droppable>
     </div>
   );
 }

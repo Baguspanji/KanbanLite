@@ -14,13 +14,15 @@ import { TaskCommentsDialog } from "./TaskCommentsDialog";
 import { useAppContext } from "@/context/AppContext";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
+import { Draggable } from 'react-beautiful-dnd';
 
 interface TaskCardProps {
   task: Task;
   projectId: string;
+  index: number; // Added for react-beautiful-dnd
 }
 
-export function TaskCard({ task, projectId }: TaskCardProps) {
+export function TaskCard({ task, projectId, index }: TaskCardProps) {
   const { moveTask } = useAppContext();
   const { toast } = useToast();
 
@@ -39,9 +41,9 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
       case 'To Do': 
         return 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80';
       case 'On Dev': 
-        return 'bg-primary text-primary-foreground hover:bg-primary/90'; // Was 'In Progress'
+        return 'bg-primary text-primary-foreground hover:bg-primary/90';
       case 'On QA':
-        return 'bg-yellow-500 text-white hover:bg-yellow-500/90 dark:bg-yellow-600 dark:hover:bg-yellow-600/90'; // New style for On QA
+        return 'bg-yellow-500 text-white hover:bg-yellow-500/90 dark:bg-yellow-600 dark:hover:bg-yellow-600/90';
       case 'Done': 
         return 'bg-green-500 text-white hover:bg-green-500/90 dark:bg-green-600 dark:hover:bg-green-600/90';
       default: 
@@ -50,70 +52,82 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
   };
   
   return (
-    <Card className="mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card">
-      <CardHeader className="pb-3 pt-4 px-4">
-        <CardTitle className="text-base font-semibold leading-tight break-words">{task.title}</CardTitle>
-        {task.description && (
-          <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis break-words">
-            {task.description}
-          </CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="px-4 pb-3 space-y-2">
-        {task.deadline && (
-          <div className="flex items-center text-xs text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-            Deadline: {format(parseISO(task.deadline), "MMM d, yyyy")}
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-           <Badge className={`${getStatusBadgeClass(task.status)} text-xs px-2 py-0.5`}>
-              {task.status}
-            </Badge>
-          {task.comments && task.comments.length > 0 && (
-             <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal h-6 px-1.5 py-0.5">
-               <MessageSquare className="h-3 w-3" />
-               {task.comments.length}
-             </Badge>
-           )}
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row sm:justify-between items-stretch sm:items-center gap-3 border-t px-4 py-3">
-        <div className="w-full sm:flex-grow">
-        <Select value={task.status} onValueChange={(value) => handleStatusChange(value as TaskStatus)}>
-            <SelectTrigger className="h-8 text-xs focus:ring-accent w-full">
-              <SelectValue placeholder="Change status" />
-            </SelectTrigger>
-            <SelectContent>
-              {TASK_STATUSES.map(s => (
-                <SelectItem key={s} value={s} className="text-xs">Move to {s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex gap-1 self-end sm:self-center">
-          <TaskCommentsDialog
-            task={task}
-            triggerButton={
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <MessageSquare className="h-4 w-4" />
-                <span className="sr-only">View Comments</span>
-              </Button>
-            }
-          />
-          <CreateTaskDialog
-            projectId={projectId}
-            task={task}
-            triggerButton={
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <Edit3 className="h-4 w-4" />
-                <span className="sr-only">Edit Task</span>
-              </Button>
-            }
-          />
-          <DeleteTaskDialog task={task} />
-        </div>
-      </CardFooter>
-    </Card>
+    <Draggable draggableId={task.id} index={index}>
+      {(provided, snapshot) => (
+        <Card
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          className={`mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
+          style={{
+            ...provided.draggableProps.style, // Important for react-beautiful-dnd positioning
+          }}
+        >
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-base font-semibold leading-tight break-words">{task.title}</CardTitle>
+            {task.description && (
+              <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis break-words">
+                {task.description}
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="px-4 pb-3 space-y-2">
+            {task.deadline && (
+              <div className="flex items-center text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                Deadline: {format(parseISO(task.deadline), "MMM d, yyyy")}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <Badge className={`${getStatusBadgeClass(task.status)} text-xs px-2 py-0.5`}>
+                  {task.status}
+                </Badge>
+              {task.comments && task.comments.length > 0 && (
+                <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal h-6 px-1.5 py-0.5">
+                  <MessageSquare className="h-3 w-3" />
+                  {task.comments.length}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col sm:flex-row sm:justify-between items-stretch sm:items-center gap-3 border-t px-4 py-3">
+            <div className="w-full sm:flex-grow">
+            <Select value={task.status} onValueChange={(value) => handleStatusChange(value as TaskStatus)}>
+                <SelectTrigger className="h-8 text-xs focus:ring-accent w-full">
+                  <SelectValue placeholder="Change status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_STATUSES.map(s => (
+                    <SelectItem key={s} value={s} className="text-xs">Move to {s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-1 self-end sm:self-center">
+              <TaskCommentsDialog
+                task={task}
+                triggerButton={
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="sr-only">View Comments</span>
+                  </Button>
+                }
+              />
+              <CreateTaskDialog
+                projectId={projectId}
+                task={task}
+                triggerButton={
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Edit3 className="h-4 w-4" />
+                    <span className="sr-only">Edit Task</span>
+                  </Button>
+                }
+              />
+              <DeleteTaskDialog task={task} />
+            </div>
+          </CardFooter>
+        </Card>
+      )}
+    </Draggable>
   );
 }

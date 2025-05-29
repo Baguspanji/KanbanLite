@@ -1,11 +1,23 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
 import { ProjectItem } from "./ProjectItem";
 import { FileText } from "lucide-react";
+import { ProjectItemSkeleton } from "./ProjectItemSkeleton";
 
 export function ProjectList() {
-  const { projects } = useAppContext();
+  const { projects, isLoading } = useAppContext();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, index) => (
+          <ProjectItemSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
 
   if (projects.length === 0) {
     return (

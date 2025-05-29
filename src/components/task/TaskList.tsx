@@ -2,21 +2,12 @@
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
-import type { Task } from "@/types";
+import type { Task } from "@/types"; // Ensure Task type is imported
 import { TaskListItem } from "./TaskListItem";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableCell, // Import TableCell
-} from "@/components/ui/table";
-import { FileText } from "lucide-react";
 import { TaskListSkeleton } from "./TaskListSkeleton";
 import { DragDropContext, Droppable, type OnDragEndResponder } from 'react-beautiful-dnd';
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react"; // Import FileText for empty state
 
 interface TaskListComponentProps {
   projectId: string;
@@ -53,7 +44,7 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
 
   if (tasks.length === 0) {
     return (
-      <div className="text-center py-10 border rounded-lg shadow-sm bg-card">
+      <div className="text-center py-10 border rounded-lg shadow-sm bg-card mt-4">
         <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-xl font-semibold text-foreground mb-2">No Tasks Yet</h3>
         <p className="text-muted-foreground">This project doesn't have any tasks. Click "Add Task" to create one.</p>
@@ -63,45 +54,20 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="border rounded-lg shadow-sm overflow-hidden bg-card">
-        <Table>
-          <TableCaption className="py-4">A list of tasks for this project. Drag to reorder.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-px pr-0 pl-2"></TableHead> {/* Drag handle column */}
-              <TableHead className="w-[40%] min-w-[200px]">Title</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
-              <TableHead className="min-w-[120px]">Deadline</TableHead>
-              <TableHead className="min-w-[100px]">Created</TableHead>
-              <TableHead className="text-right min-w-[150px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <Droppable droppableId={`project-${projectId}-tasks`} type="TASK_LIST_ITEM">
-            {(provided) => (
-              <TableBody
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-              >
-                {tasks.map((task, index) => (
-                  <TaskListItem key={task.id} task={task} projectId={projectId} index={index} />
-                ))}
-                {/*
-                  Wrap the placeholder in a TableRow and TableCell to make it a valid child of TableBody.
-                  The placeholder element from react-beautiful-dnd is used for spacing and calculations.
-                  The TableCell needs to span all columns.
-                */}
-                {provided.placeholder && (
-                  <TableRow style={{display: "none"}}> {/* Visually hide the row if not needed by rbd for layout */}
-                    <TableCell colSpan={6} style={{ padding: 0, border: 'none' }}>
-                      {provided.placeholder}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            )}
-          </Droppable>
-        </Table>
-      </div>
+      <Droppable droppableId={`project-${projectId}-tasks`} type="TASK_LIST_ITEM">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="space-y-3 mt-4" // Added mt-4 for spacing from controls
+          >
+            {tasks.map((task, index) => (
+              <TaskListItem key={task.id} task={task} projectId={projectId} index={index} />
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
     </DragDropContext>
   );
 }

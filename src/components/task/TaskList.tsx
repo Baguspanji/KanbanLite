@@ -59,6 +59,7 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
         type="TASK_LIST_ITEM"
         isDropDisabled={false}
         isCombineEnabled={false} // Explicitly set isCombineEnabled
+        ignoreContainerClipping={false} // Explicitly set ignoreContainerClipping
       >
         {(provided, snapshot) => (
           <div
@@ -76,3 +77,4 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
     </DragDropContext>
   );
 }
+

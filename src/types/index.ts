@@ -1,7 +1,7 @@
 
-export type TaskStatus = 'To Do' | 'In Progress' | 'Done';
+export type TaskStatus = 'To Do' | 'On Dev' | 'On QA' | 'Done';
 
-export const TASK_STATUSES: TaskStatus[] = ['To Do', 'In Progress', 'Done'];
+export const TASK_STATUSES: TaskStatus[] = ['To Do', 'On Dev', 'On QA', 'Done'];
 
 export interface Comment {
   id: string;

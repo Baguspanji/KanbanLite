@@ -38,8 +38,10 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
     switch (status) {
       case 'To Do': 
         return 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80';
-      case 'In Progress': 
-        return 'bg-primary text-primary-foreground hover:bg-primary/90';
+      case 'On Dev': 
+        return 'bg-primary text-primary-foreground hover:bg-primary/90'; // Was 'In Progress'
+      case 'On QA':
+        return 'bg-yellow-500 text-white hover:bg-yellow-500/90 dark:bg-yellow-600 dark:hover:bg-yellow-600/90'; // New style for On QA
       case 'Done': 
         return 'bg-green-500 text-white hover:bg-green-500/90 dark:bg-green-600 dark:hover:bg-green-600/90';
       default: 

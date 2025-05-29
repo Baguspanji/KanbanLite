@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Task, TaskStatus } from "@/types";
@@ -17,7 +18,8 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
   const columnBackgroundColor = () => {
     switch (title) {
       case 'To Do': return 'bg-muted/30';
-      case 'In Progress': return 'bg-blue-100/50 dark:bg-blue-900/30';
+      case 'On Dev': return 'bg-blue-100/50 dark:bg-blue-900/30';
+      case 'On QA': return 'bg-yellow-100/50 dark:bg-yellow-900/30'; // New color for On QA
       case 'Done': return 'bg-green-100/50 dark:bg-green-900/30';
       default: return 'bg-muted/30';
     }

@@ -20,9 +20,9 @@ import {
   orderBy,
   writeBatch,
   arrayUnion,
-  getDoc // Import getDoc
+  getDoc
 } from 'firebase/firestore';
-import { ref as storageRef, deleteObject } from "firebase/storage"; // Import storage functions
+import { ref as storageRefFB, deleteObject } from "firebase/storage"; // Renamed to avoid conflict with local storageRef
 
 type Theme = 'light' | 'dark';
 
@@ -84,7 +84,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setProjects(loadedProjects);
     }, (error) => {
       console.error("Error fetching projects: ", error);
-      // setIsLoading(false); // Keep loading true until tasks are also loaded or fail
     });
 
     const qTasks = query(tasksCollectionRef, orderBy('createdAt', 'asc'));
@@ -155,23 +154,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const batch = writeBatch(db);
       const tasksSnapshot = await getDocs(tasksQuery);
-      tasksSnapshot.forEach(taskDoc => {
-        // Also delete attachments for each task's comments
-        const taskData = taskDoc.data() as Task;
-        if (taskData.comments) {
-          taskData.comments.forEach(comment => {
-            if (comment.fileURL) {
-              const fileRef = storageRef(storage, comment.fileURL);
-              deleteObject(fileRef).catch(err => console.error("Error deleting attachment during project delete:", err));
+
+      const fileDeletionPromises: Promise<void>[] = [];
+
+      for (const taskDoc of tasksSnapshot.docs) {
+        const taskData = taskDoc.data(); // Firestore DocumentData
+        if (taskData.comments && Array.isArray(taskData.comments)) {
+          for (const comment of taskData.comments) {
+            if (comment.fileURL && typeof comment.fileURL === 'string') {
+              fileDeletionPromises.push(
+                (async () => {
+                  console.log(`Project ${id}, Task ${taskDoc.id}: Attempting to delete attachment ${comment.fileURL}`);
+                  try {
+                    const fileRef = storageRefFB(storage, comment.fileURL);
+                    await deleteObject(fileRef);
+                  } catch (err) {
+                    console.error(`Project ${id}, Task ${taskDoc.id}: Error deleting attachment ${comment.fileURL}:`, err);
+                    // Decide if this error should prevent project deletion. Usually not.
+                  }
+                })()
+              );
             }
-          });
+          }
         }
-        batch.delete(taskDoc.ref);
-      });
-      batch.delete(projectDocRef);
-      await batch.commit();
+        batch.delete(taskDoc.ref); // Add task deletion to batch
+      }
+
+      // Wait for all file deletion attempts to settle
+      if (fileDeletionPromises.length > 0) {
+        await Promise.allSettled(fileDeletionPromises);
+        console.log(`Project ${id}: All attachment deletion attempts for its tasks have been processed.`);
+      }
+      
+      batch.delete(projectDocRef); // Add project deletion to batch
+      await batch.commit(); // Commit all batched operations
     } catch (error) {
-      console.error("Error deleting project and its tasks: ", error);
+      console.error(`Error deleting project ${id} and its tasks: `, error);
     }
   }, []);
 
@@ -245,26 +263,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const deleteTask = useCallback(async (id: string) => {
     const taskDocRef = doc(db, 'tasks', id);
     try {
-      // Before deleting task, delete all its comment attachments from storage
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
-        const taskData = taskSnap.data() as Task;
-        if (taskData.comments) {
+        const taskData = taskSnap.data() as Task; // Local Task type which has comments typed
+        if (taskData.comments && taskData.comments.length > 0) {
+          const fileDeletionPromises: Promise<void>[] = [];
+          console.log(`Task ${id}: Preparing to delete attachments for ${taskData.comments.length} comment(s).`);
           for (const comment of taskData.comments) {
-            if (comment.fileURL) {
-              try {
-                const fileRef = storageRef(storage, comment.fileURL);
-                await deleteObject(fileRef);
-              } catch (err) {
-                console.error("Error deleting attachment during task delete:", err);
-              }
+            if (comment.fileURL && typeof comment.fileURL === 'string') {
+               fileDeletionPromises.push(
+                (async () => {
+                  console.log(`Task ${id}: Attempting to delete attachment ${comment.fileURL}`);
+                  try {
+                    const fileRef = storageRefFB(storage, comment.fileURL);
+                    await deleteObject(fileRef);
+                  } catch (err) {
+                    console.error(`Task ${id}: Error deleting attachment ${comment.fileURL}:`, err);
+                  }
+                })()
+              );
             }
           }
+          if (fileDeletionPromises.length > 0) {
+            await Promise.allSettled(fileDeletionPromises);
+            console.log(`Task ${id}: All attachment deletion attempts have been processed.`);
+          }
         }
+      } else {
+        console.warn(`Task ${id} not found for attachment deletion.`);
       }
       await deleteDoc(taskDocRef);
     } catch (error) {
-      console.error("Error deleting task: ", error);
+      console.error(`Error deleting task ${id}: `, error);
     }
   }, []);
 
@@ -292,7 +322,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     try {
-      // Firestore expects Timestamps for date fields if they are to be queryable as such
       const commentForFirestore = {
         ...newComment,
         createdAt: Timestamp.fromDate(parseISO(newComment.createdAt)),
@@ -315,14 +344,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
-        const taskData = taskSnap.data() as Task; // Already fetched, so direct cast
-        let comments = taskData.comments ? [...taskData.comments] : [];
+        const taskData = taskSnap.data();
+        let comments = (taskData.comments || []).map((c: any) => ({ // Map Firestore data to local Comment structure
+          ...c,
+          createdAt: c.createdAt instanceof Timestamp ? c.createdAt.toDate().toISOString() : c.createdAt,
+          updatedAt: c.updatedAt instanceof Timestamp ? c.updatedAt.toDate().toISOString() : c.updatedAt,
+        })) as Comment[];
+        
         const commentIndex = comments.findIndex(c => c.id === commentId);
 
         if (commentIndex > -1) {
           const oldComment = comments[commentIndex];
           
-          // Prepare the updated comment object
           const updatedCommentObject: Comment = {
             ...oldComment,
             text: updatedCommentData.text,
@@ -331,16 +364,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             updatedAt: Timestamp.fromDate(new Date()).toDate().toISOString(),
           };
           
-          // Convert date strings to Timestamps for Firestore
-          const commentForFirestore = {
-            ...updatedCommentObject,
-            createdAt: Timestamp.fromDate(parseISO(updatedCommentObject.createdAt)),
-            updatedAt: Timestamp.fromDate(parseISO(updatedCommentObject.updatedAt!)),
-          };
+          comments[commentIndex] = updatedCommentObject;
 
-          comments[commentIndex] = commentForFirestore as any; // Cast needed because local state uses string dates
+          // Convert back to Firestore Timestamps before updating
+          const commentsForFirestore = comments.map(c => ({
+            ...c,
+            createdAt: Timestamp.fromDate(parseISO(c.createdAt)),
+            updatedAt: c.updatedAt ? Timestamp.fromDate(parseISO(c.updatedAt)) : undefined,
+          }));
 
-          await updateDoc(taskDocRef, { comments: comments });
+          await updateDoc(taskDocRef, { comments: commentsForFirestore });
         } else {
           console.error("Comment not found for update:", commentId);
           throw new Error("Comment not found");

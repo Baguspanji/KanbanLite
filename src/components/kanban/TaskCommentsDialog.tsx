@@ -34,7 +34,7 @@ import { Send, Paperclip, XCircle, UploadCloud, Edit2, Trash2, FileText } from "
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/firebase";
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref as storageRefFB, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"; // Renamed to avoid conflict with local storageRef
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -49,6 +49,47 @@ interface TaskCommentsDialogProps {
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const CONVERTIBLE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+
+// Helper function to convert file to WebP
+async function convertToWebP(file: File, quality = 0.8): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      if (!event.target?.result) {
+        return reject(new Error('Failed to read file for conversion.'));
+      }
+      const img = new Image();
+      img.src = event.target.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('Could not get canvas context'));
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              return reject(new Error('Canvas toBlob failed for WebP conversion.'));
+            }
+            const originalNameWithoutExtension = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            const webpFileName = `${originalNameWithoutExtension}.webp`;
+            resolve(new File([blob], webpFileName, { type: 'image/webp' }));
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err instanceof ErrorEvent ? err.error : new Error('Image loading failed for conversion.'));
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
 
 export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogProps) {
   const { addCommentToTask, updateCommentInTask } = useAppContext();
@@ -56,6 +97,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false); // Covers upload and comment posting/updating
+  const [isConvertingFile, setIsConvertingFile] = useState(false); // For image conversion
   const [fileError, setFileError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -81,6 +123,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     setSelectedFile(null);
     setUploadProgress(null);
     setIsProcessing(false);
+    setIsConvertingFile(false);
     setFileError(null);
     setEditingComment(null);
     setCurrentAttachmentName(null);
@@ -90,34 +133,56 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
         setFileError(`File is too large. Max size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
         setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear the input
-        setAttachmentAction(editingComment?.fileURL ? 'keep' : 'remove'); // Revert if was editing
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setAttachmentAction(editingComment?.fileURL ? 'keep' : 'remove');
         return;
       }
-      setSelectedFile(file);
       setFileError(null);
-      setCurrentAttachmentName(file.name);
-      setAttachmentAction('replace');
+
+      if (CONVERTIBLE_IMAGE_TYPES.includes(file.type)) {
+        setIsConvertingFile(true);
+        try {
+          const webpFile = await convertToWebP(file);
+          setSelectedFile(webpFile);
+          setCurrentAttachmentName(webpFile.name);
+          setAttachmentAction('replace');
+        } catch (conversionError) {
+          console.error("Error converting to WebP:", conversionError);
+          setFileError("Failed to convert image. Original file will be used.");
+          setSelectedFile(file); // Fallback to original
+          setCurrentAttachmentName(file.name);
+          setAttachmentAction('replace');
+        } finally {
+          setIsConvertingFile(false);
+        }
+      } else {
+        setSelectedFile(file);
+        setCurrentAttachmentName(file.name);
+        setAttachmentAction('replace');
+      }
     } else {
-      // If file input is cleared, and we were editing with an existing attachment
       if (editingComment?.fileURL && attachmentAction !== 'remove') {
-         setAttachmentAction('keep'); // User cleared selection, might want to keep original
+         setAttachmentAction('keep');
       }
       setSelectedFile(null);
+      // If editing and file input is cleared, but we want to keep the existing attachment,
+      // currentAttachmentName should not be nulled unless explicitly removing.
+      // This logic is handled by not setting currentAttachmentName to null here.
     }
   };
 
   const handleRemoveCurrentAttachment = () => {
     setCurrentAttachmentName(null);
-    setSelectedFile(null); // Ensure no new file is also selected
+    setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setAttachmentAction('remove');
+    setFileError(null); // Clear file error if attachment is removed
   };
 
   const handleStartEdit = (comment: Comment) => {
@@ -128,15 +193,16 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
       setAttachmentAction('keep');
     } else {
       setCurrentAttachmentName(null);
-      setAttachmentAction('remove'); // No existing file, so 'remove' means no file
+      setAttachmentAction('remove');
     }
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setFileError(null);
+    setIsConvertingFile(false); // Ensure conversion state is reset
   };
 
   const handleCancelEdit = () => {
-    resetFormAndState(); // Resets form and all editing states
+    resetFormAndState();
   };
 
   const onSubmit = async (data: CommentFormValues) => {
@@ -148,12 +214,12 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     try {
       if (attachmentAction === 'replace' && selectedFile) {
         if (editingComment?.fileURL) {
-          oldFileToDelete = editingComment.fileURL; // Mark old file for deletion
+          oldFileToDelete = editingComment.fileURL;
         }
         setUploadProgress(0);
         const storagePath = `task_attachments/${task.id}/${Date.now()}_${selectedFile.name}`;
-        const fileStorageRef = storageRef(storage, storagePath);
-        const uploadTask = uploadBytesResumable(fileStorageRef, selectedFile);
+        const fileStorageRefInstance = storageRefFB(storage, storagePath); // Use renamed import
+        const uploadTask = uploadBytesResumable(fileStorageRefInstance, selectedFile);
 
         await new Promise<void>((resolve, reject) => {
           uploadTask.on(
@@ -175,21 +241,18 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         });
       } else if (attachmentAction === 'remove') {
         if (editingComment?.fileURL) {
-          oldFileToDelete = editingComment.fileURL; // Mark old file for deletion
+          oldFileToDelete = editingComment.fileURL;
         }
         fileURL = undefined;
         fileName = undefined;
       }
-      // If attachmentAction is 'keep', fileURL and fileName remain as initialized from editingComment
 
-      // Now, delete the old file if marked
       if (oldFileToDelete) {
         try {
-          const oldFileRef = storageRef(storage, oldFileToDelete);
+          const oldFileRef = storageRefFB(storage, oldFileToDelete); // Use renamed import
           await deleteObject(oldFileRef);
         } catch (deleteError) {
           console.error("Failed to delete old attachment:", deleteError);
-          // Continue, as the main operation might still succeed
         }
       }
 
@@ -203,12 +266,9 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         toast({ title: "Comment Added", description: "Your comment has been posted." });
       }
       resetFormAndState();
-      // setIsOpen(false); // Keep dialog open for now
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save comment.", variant: "destructive" });
       console.error("Failed to save comment/upload:", error);
-      // If upload succeeded but comment save failed with a new file, we don't delete the newly uploaded file here.
-      // It's complex to manage; for now, it might become an orphan.
     } finally {
       setIsProcessing(false);
       setUploadProgress(null);
@@ -220,13 +280,15 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     return [...task.comments].sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [task.comments]);
 
+  const submitButtonDisabled = isProcessing || isConvertingFile || !form.formState.isValid || (!!fileError && attachmentAction !== 'remove' && !selectedFile); // Allow submit if error is for a file that's being removed
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
       <DialogContent className="sm:max-w-md md:max-w-lg flex flex-col h-[calc(min(85vh,700px))]">
         <DialogHeader>
           <DialogTitle>{editingComment ? 'Edit Comment' : `Comments for "${task.title}"`}</DialogTitle>
-          {!editingComment && <DialogDescription>View and add comments. Max file size: 2MB.</DialogDescription>}
+          {!editingComment && <DialogDescription>View and add comments. Max file size: 2MB. Images (JPG, PNG, GIF) will be converted to WebP.</DialogDescription>}
         </DialogHeader>
 
         <div className="flex-grow overflow-y-hidden py-4">
@@ -255,10 +317,10 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                             <p className="text-xs text-muted-foreground">
                             {formatDistanceToNow(parseISO(comment.createdAt), { addSuffix: true })}
                             {comment.updatedAt && (
-                                <span title={formatISO(parseISO(comment.updatedAt))}> (edited)</span>
+                                <span title={new Date(comment.updatedAt).toISOString()}> (edited)</span>
                             )}
                             </p>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEdit(comment)} disabled={isProcessing}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEdit(comment)} disabled={isProcessing || isConvertingFile}>
                             <Edit2 className="h-4 w-4" />
                             <span className="sr-only">Edit comment</span>
                           </Button>
@@ -286,7 +348,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                       className="resize-none min-h-[60px]"
                       rows={2}
                       {...field}
-                      disabled={isProcessing}
+                      disabled={isProcessing || isConvertingFile}
                     />
                   </FormControl>
                   <FormMessage />
@@ -303,27 +365,30 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground hover:file:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isProcessing}
+                  disabled={isProcessing || isConvertingFile}
                 />
-                {(selectedFile || (editingComment && currentAttachmentName && attachmentAction !== 'remove')) && !isProcessing && (
-                  <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCurrentAttachment} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                {(selectedFile || (currentAttachmentName && attachmentAction !== 'remove')) && (
+                  <Button type="button" variant="ghost" size="icon" onClick={handleRemoveCurrentAttachment} className="h-8 w-8 text-muted-foreground hover:text-destructive" disabled={isProcessing || isConvertingFile}>
                     <XCircle className="h-4 w-4" />
                     <span className="sr-only">Clear file</span>
                   </Button>
                 )}
               </div>
-              {currentAttachmentName && !selectedFile && attachmentAction === 'keep' && (
+              {currentAttachmentName && attachmentAction === 'keep' && !selectedFile && (
                  <Badge variant="outline" className="mt-1 text-xs py-1 px-2 font-normal flex items-center gap-1.5">
                     <FileText className="h-3 w-3" /> Currently attached: {currentAttachmentName}
                  </Badge>
               )}
               {selectedFile && (
-                <p className="text-xs text-muted-foreground mt-1">Selected to upload: {selectedFile.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile.name}</p>
               )}
               {fileError && <FormMessage>{fileError}</FormMessage>}
             </FormItem>
 
-            {isProcessing && uploadProgress !== null && uploadProgress >= 0 && (
+            {isConvertingFile && (
+                <p className="text-xs text-primary text-center">Converting image to WebP...</p>
+            )}
+            {isProcessing && uploadProgress !== null && uploadProgress >= 0 && !isConvertingFile && (
               <div className="space-y-1">
                 <Progress value={uploadProgress} className="h-2 w-full" />
                 <p className="text-xs text-muted-foreground text-center">
@@ -334,7 +399,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
 
             <DialogFooter className="pt-2 flex-col sm:flex-row gap-2">
               {editingComment && (
-                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleCancelEdit} disabled={isProcessing}>
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleCancelEdit} disabled={isProcessing || isConvertingFile}>
                   Cancel Edit
                 </Button>
               )}
@@ -343,14 +408,14 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                  variant="ghost" 
                  className="w-full sm:w-auto sm:mr-auto" 
                  onClick={() => { resetFormAndState(); setIsOpen(false);}} 
-                 disabled={isProcessing}
+                 disabled={isProcessing || isConvertingFile}
                 >
                 Close
               </Button>
-               <Button type="submit" className="w-full sm:w-auto" disabled={isProcessing || !form.formState.isValid || !!fileError}>
-                {isProcessing ? (editingComment ? "Saving..." : (selectedFile ? "Uploading..." : "Posting...")) : (
+               <Button type="submit" className="w-full sm:w-auto" disabled={submitButtonDisabled}>
+                {isConvertingFile ? "Converting..." : (isProcessing ? (editingComment ? "Saving..." : (selectedFile ? "Uploading..." : "Posting...")) : (
                   <> <Send className="mr-2 h-4 w-4" /> {editingComment ? "Save Changes" : "Post Comment"} </>
-                )}
+                ))}
               </Button>
             </DialogFooter>
           </form>
@@ -359,3 +424,4 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     </Dialog>
   );
 }
+

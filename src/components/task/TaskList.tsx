@@ -54,7 +54,11 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId={`project-${projectId}-tasks`} type="TASK_LIST_ITEM">
+      <Droppable 
+        droppableId={`project-${projectId}-tasks`} 
+        type="TASK_LIST_ITEM"
+        isDropDisabled={false} // Explicitly set prop
+      >
         {(provided) => (
           <div
             ref={provided.innerRef}
@@ -71,3 +75,4 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
     </DragDropContext>
   );
 }
+

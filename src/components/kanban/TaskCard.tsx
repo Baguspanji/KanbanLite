@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Task, TaskStatus } from "@/types";
 import { TASK_STATUSES } from "@/types";
-import { Edit3, CalendarDays } from "lucide-react";
+import { Edit3, CalendarDays, MessageSquare } from "lucide-react"; // Added MessageSquare
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
+import { TaskCommentsDialog } from "./TaskCommentsDialog"; // Added this
 import { useAppContext } from "@/context/AppContext";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
@@ -51,16 +53,24 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="px-4 pb-3">
+      <CardContent className="px-4 pb-3 space-y-2">
         {task.deadline && (
-          <div className="flex items-center text-xs text-muted-foreground mb-2">
+          <div className="flex items-center text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
             Deadline: {format(parseISO(task.deadline), "MMM d, yyyy")}
           </div>
         )}
-         <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white text-xs px-2 py-0.5`}>
-            {task.status}
-          </Badge>
+        <div className="flex items-center justify-between">
+           <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white text-xs px-2 py-0.5`}>
+              {task.status}
+            </Badge>
+          {task.comments && task.comments.length > 0 && (
+             <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal h-6 px-1.5 py-0.5">
+               <MessageSquare className="h-3 w-3" />
+               {task.comments.length}
+             </Badge>
+           )}
+        </div>
       </CardContent>
       <CardFooter className="flex justify-between items-center border-t px-4 py-3">
         <div className="w-2/3">
@@ -76,6 +86,15 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
           </Select>
         </div>
         <div className="flex gap-1">
+          <TaskCommentsDialog
+            task={task}
+            triggerButton={
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MessageSquare className="h-4 w-4" />
+                <span className="sr-only">View Comments</span>
+              </Button>
+            }
+          />
           <CreateTaskDialog
             projectId={projectId}
             task={task}

@@ -1,6 +1,7 @@
+
 "use client";
 
-import type { Project, Task, TaskStatus } from '@/types';
+import type { Project, Task, TaskStatus, Comment } from '@/types'; // Added Comment
 import React, { createContext, useContext, ReactNode } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { formatISO } from 'date-fns';
@@ -17,6 +18,7 @@ interface AppContextType {
   deleteTask: (id: string) => void;
   getTasksByProjectId: (projectId: string) => Task[];
   moveTask: (taskId: string, newStatus: TaskStatus) => void;
+  addCommentToTask: (taskId: string, commentText: string) => void; // Added this line
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -62,6 +64,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deadline: deadline ? formatISO(deadline, { representation: 'date' }) : undefined,
       status,
       createdAt: formatISO(new Date()),
+      comments: [], // Initialize comments array
     };
     setTasks((prevTasks) => [...prevTasks, newTask]);
     return newTask;
@@ -72,10 +75,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       prevTasks.map((task) => {
         if (task.id === id) {
           const updatedTask = { ...task, ...updates };
-          if (updates.deadline === null) { // Handle explicit null to clear deadline
+          if (updates.deadline === null) { 
             updatedTask.deadline = undefined;
           } else if (updates.deadline instanceof Date) {
             updatedTask.deadline = formatISO(updates.deadline, { representation: 'date' });
+          }
+          // Ensure comments are preserved if not part of updates
+          if (!updates.comments && task.comments) {
+            updatedTask.comments = task.comments;
           }
           return updatedTask;
         }
@@ -100,6 +107,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const addCommentToTask = (taskId: string, commentText: string) => {
+    const newComment: Comment = {
+      id: generateId(),
+      text: commentText,
+      createdAt: formatISO(new Date()),
+    };
+    setTasks(prevTasks =>
+      prevTasks.map(t =>
+        t.id === taskId
+          ? { ...t, comments: [...(t.comments || []), newComment] }
+          : t
+      )
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -114,6 +136,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         deleteTask,
         getTasksByProjectId,
         moveTask,
+        addCommentToTask, // Added this
       }}
     >
       {children}

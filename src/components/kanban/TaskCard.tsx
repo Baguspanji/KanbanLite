@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Task, TaskStatus } from "@/types";
 import { TASK_STATUSES } from "@/types";
-import { Edit3, CalendarDays, MessageSquare } from "lucide-react"; // Added MessageSquare
+import { Edit3, CalendarDays, MessageSquare } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
-import { TaskCommentsDialog } from "./TaskCommentsDialog"; // Added this
+import { TaskCommentsDialog } from "./TaskCommentsDialog";
 import { useAppContext } from "@/context/AppContext";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
@@ -34,21 +34,25 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
     }
   };
 
-  const getStatusColor = (status: TaskStatus) => {
+  const getStatusBadgeClass = (status: TaskStatus) => {
     switch (status) {
-      case 'To Do': return 'bg-slate-500';
-      case 'In Progress': return 'bg-blue-500';
-      case 'Done': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'To Do': 
+        return 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80';
+      case 'In Progress': 
+        return 'bg-primary text-primary-foreground hover:bg-primary/90';
+      case 'Done': 
+        return 'bg-green-500 text-white hover:bg-green-500/90 dark:bg-green-600 dark:hover:bg-green-600/90';
+      default: 
+        return 'bg-gray-500 text-white hover:bg-gray-500/90';
     }
   };
   
   return (
     <Card className="mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card">
       <CardHeader className="pb-3 pt-4 px-4">
-        <CardTitle className="text-base font-semibold leading-tight">{task.title}</CardTitle>
+        <CardTitle className="text-base font-semibold leading-tight break-words">{task.title}</CardTitle>
         {task.description && (
-          <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis">
+          <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis break-words">
             {task.description}
           </CardDescription>
         )}
@@ -56,12 +60,12 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
       <CardContent className="px-4 pb-3 space-y-2">
         {task.deadline && (
           <div className="flex items-center text-xs text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+            <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
             Deadline: {format(parseISO(task.deadline), "MMM d, yyyy")}
           </div>
         )}
         <div className="flex items-center justify-between">
-           <Badge variant="secondary" className={`${getStatusColor(task.status)} text-white text-xs px-2 py-0.5`}>
+           <Badge className={`${getStatusBadgeClass(task.status)} text-xs px-2 py-0.5`}>
               {task.status}
             </Badge>
           {task.comments && task.comments.length > 0 && (
@@ -72,10 +76,10 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
            )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between items-center border-t px-4 py-3">
-        <div className="w-2/3">
+      <CardFooter className="flex flex-col sm:flex-row sm:justify-between items-stretch sm:items-center gap-3 border-t px-4 py-3">
+        <div className="w-full sm:flex-grow">
         <Select value={task.status} onValueChange={(value) => handleStatusChange(value as TaskStatus)}>
-            <SelectTrigger className="h-8 text-xs focus:ring-accent">
+            <SelectTrigger className="h-8 text-xs focus:ring-accent w-full">
               <SelectValue placeholder="Change status" />
             </SelectTrigger>
             <SelectContent>
@@ -85,7 +89,7 @@ export function TaskCard({ task, projectId }: TaskCardProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 self-end sm:self-center">
           <TaskCommentsDialog
             task={task}
             triggerButton={

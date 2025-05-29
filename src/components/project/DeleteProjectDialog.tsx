@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -20,9 +21,10 @@ import { useToast } from "@/hooks/use-toast";
 interface DeleteProjectDialogProps {
   project: Project;
   onDeleted?: () => void;
+  triggerButton?: React.ReactNode; // Allow custom trigger
 }
 
-export function DeleteProjectDialog({ project, onDeleted }: DeleteProjectDialogProps) {
+export function DeleteProjectDialog({ project, onDeleted, triggerButton }: DeleteProjectDialogProps) {
   const { deleteProject } = useAppContext();
   const { toast } = useToast();
 
@@ -42,10 +44,12 @@ export function DeleteProjectDialog({ project, onDeleted }: DeleteProjectDialogP
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Delete Project</span>
-        </Button>
+        {triggerButton ? triggerButton : (
+          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete Project</span>
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -55,8 +59,11 @@ export function DeleteProjectDialog({ project, onDeleted }: DeleteProjectDialogP
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+          <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleDelete} 
+            className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          >
             Delete Project
           </AlertDialogAction>
         </AlertDialogFooter>

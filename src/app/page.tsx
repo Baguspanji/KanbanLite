@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ProjectList } from "@/components/project/ProjectList";
@@ -8,7 +9,7 @@ import { PlusCircle } from "lucide-react";
 export default function HomePage() {
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Your Projects</h1>
         <CreateProjectDialog 
           triggerButton={

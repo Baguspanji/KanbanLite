@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -127,6 +128,7 @@ export function CreateProjectDialog({ project, triggerButton }: CreateProjectDia
                     <Textarea
                       placeholder="A brief description of the project."
                       className="resize-none"
+                      rows={3}
                       {...field}
                     />
                   </FormControl>
@@ -135,10 +137,10 @@ export function CreateProjectDialog({ project, triggerButton }: CreateProjectDia
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
+              <Button type="submit" className="w-full sm:w-auto" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (project ? "Saving..." : "Creating...") : (project ? "Save Changes" : "Create Project")}
               </Button>
             </DialogFooter>

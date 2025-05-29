@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -55,8 +56,11 @@ export function DeleteTaskDialog({ task, onDeleted }: DeleteTaskDialogProps) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+          <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleDelete} 
+            className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          >
             Delete Task
           </AlertDialogAction>
         </AlertDialogFooter>

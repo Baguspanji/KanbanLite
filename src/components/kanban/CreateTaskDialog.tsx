@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -220,10 +221,10 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
               )}
             />
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
+              <Button type="submit" className="w-full sm:w-auto" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (task ? "Saving..." : "Creating...") : (task ? "Save Changes" : "Create Task")}
               </Button>
             </DialogFooter>

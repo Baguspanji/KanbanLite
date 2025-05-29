@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from "react"; // Added this line
+import * as React from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -87,7 +87,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                 {sortedComments.map((comment, index) => (
                   <React.Fragment key={comment.id}>
                     <div className="p-3 rounded-md border bg-card shadow-sm">
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{comment.text}</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap break-words">{comment.text}</p>
                       <p className="text-xs text-muted-foreground mt-1.5">
                         {formatDistanceToNow(parseISO(comment.createdAt), { addSuffix: true })}
                       </p>
@@ -120,12 +120,12 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-0 sm:justify-between">
-               <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isValid}>
-                {form.formState.isSubmitting ? "Posting..." : <> <Send className="mr-2 h-4 w-4" /> Post Comment </>}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+            <DialogFooter className="pt-0"> {/* Default footer stacks buttons on mobile and arranges them in a row on sm+ */}
+               <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsOpen(false)}>
                 Close
+              </Button>
+               <Button type="submit" className="w-full sm:w-auto" disabled={form.formState.isSubmitting || !form.formState.isValid}>
+                {form.formState.isSubmitting ? "Posting..." : <> <Send className="mr-2 h-4 w-4" /> Post Comment </>}
               </Button>
             </DialogFooter>
           </form>

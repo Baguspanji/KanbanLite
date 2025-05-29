@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -63,23 +64,23 @@ export default function ProjectPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex-grow">
           <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
             <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{project.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground break-words">{project.name}</h1>
           {project.description && (
-            <p className="text-muted-foreground mt-1 max-w-2xl">{project.description}</p>
+            <p className="text-muted-foreground mt-1 max-w-2xl break-words">{project.description}</p>
           )}
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto self-start sm:self-auto mt-4 md:mt-0 flex-shrink-0">
           <CreateProjectDialog
             project={project}
             triggerButton={
-              <Button variant="outline">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <Edit3 className="mr-2 h-4 w-4" /> Edit Project
               </Button>
             }

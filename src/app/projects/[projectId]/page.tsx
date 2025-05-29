@@ -145,11 +145,11 @@ export default function ProjectPage() {
             onValueChange={(value) => { if (value) setViewMode(value as 'kanban' | 'list'); }}
             className="border bg-background rounded-md p-1 flex-shrink-0"
           >
-            <ToggleGroupItem value="kanban" aria-label="Kanban view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-2.5 sm:px-3">
+            <ToggleGroupItem value="kanban" aria-label="Kanban view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-4">
               <LayoutGrid className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Kanban</span>
             </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-2.5 sm:px-3">
+            <ToggleGroupItem value="list" aria-label="List view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground px-4">
               <ListFilter className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">List</span>
             </ToggleGroupItem>

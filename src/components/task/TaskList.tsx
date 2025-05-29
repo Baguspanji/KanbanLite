@@ -58,6 +58,7 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
         droppableId={`project-${projectId}-tasks`}
         type="TASK_LIST_ITEM"
         isDropDisabled={false}
+        isCombineEnabled={false} // Explicitly set isCombineEnabled
       >
         {(provided, snapshot) => (
           <div

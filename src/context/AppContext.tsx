@@ -46,6 +46,7 @@ interface AppContextType {
   deleteTask: (id: string) => Promise<void>;
   getTasksByProjectId: (projectId: string) => Task[];
   moveTask: (taskId: string, newStatus: TaskStatus) => Promise<void>;
+  reorderTasksInList: (projectId: string, sourceIndex: number, destinationIndex: number) => Promise<void>;
   addCommentToTask: (taskId: string, commentData: CommentData) => Promise<void>;
   updateCommentInTask: (taskId: string, commentId: string, updatedCommentData: CommentData) => Promise<void>;
   isLoading: boolean;
@@ -72,10 +73,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setIsLoading(true);
     const projectsCollectionRef = collection(db, 'projects');
-    const tasksCollectionRef = collection(db, 'tasks');
-
-    const qProjects = query(projectsCollectionRef, orderBy('createdAt', 'desc'));
-    const unsubscribeProjects = onSnapshot(qProjects, (snapshot) => {
+    // No specific order for projects needed from Firestore if AppContext sorts later or UI sorts.
+    // If consistent initial order from DB is desired, add orderBy here.
+    const unsubscribeProjects = onSnapshot(projectsCollectionRef, (snapshot) => {
       const loadedProjects = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -86,7 +86,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error fetching projects: ", error);
     });
 
-    const qTasks = query(tasksCollectionRef, orderBy('createdAt', 'asc'));
+    const tasksCollectionRef = collection(db, 'tasks');
+    // Fetch tasks ordered by 'order' then 'createdAt' to support list view reordering primarily
+    const qTasks = query(tasksCollectionRef, orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
     const unsubscribeTasks = onSnapshot(qTasks, (snapshot) => {
       const loadedTasks = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
@@ -95,6 +97,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ...data,
           createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
           deadline: data.deadline ? (data.deadline as Timestamp).toDate().toISOString() : undefined,
+          order: data.order, // Ensure order field is loaded
           comments: (data.comments || []).map((comment: any) => ({
             ...comment,
             createdAt: comment.createdAt instanceof Timestamp
@@ -169,7 +172,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     const fileRef = storageRefFB(storage, comment.fileURL);
                     await deleteObject(fileRef);
                   } catch (err) {
-                    // Log error but continue, as failure to delete one file shouldn't block project deletion
                     console.error(`Project ${id}, Task ${taskDoc.id}: Error deleting attachment ${comment.fileURL}:`, err);
                   }
                 })()
@@ -191,7 +193,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log(`Project ${id} and its tasks successfully deleted.`);
     } catch (error) {
       console.error(`Error deleting project ${id} and its tasks: `, error);
-      // Re-throw or handle as appropriate for UI feedback
       throw error;
     }
   }, []);
@@ -201,15 +202,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [projects]);
 
   const addTask = useCallback(async (projectId: string, title: string, description?: string, deadline?: Date, status: TaskStatus = 'To Do'): Promise<Task | null> => {
-    const newTaskData = {
+    const newTaskData: any = {
       projectId,
       title,
       description: description || "",
-      deadline: deadline ? Timestamp.fromDate(deadline) : null,
       status,
       createdAt: Timestamp.fromDate(new Date()),
       comments: [],
+      order: Date.now(), // Assign current timestamp as initial order
     };
+    if (deadline) {
+      newTaskData.deadline = Timestamp.fromDate(deadline);
+    } else {
+      newTaskData.deadline = null; // Explicitly set to null if not provided
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'tasks'), newTaskData);
       return {
@@ -217,6 +224,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...newTaskData,
         createdAt: newTaskData.createdAt.toDate().toISOString(),
         deadline: newTaskData.deadline ? newTaskData.deadline.toDate().toISOString() : undefined,
+        order: newTaskData.order,
       };
     } catch (error) {
       console.error("Error adding task: ", error);
@@ -229,13 +237,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updatesToSend: { [key: string]: any } = {};
 
     if (taskUpdates.title !== undefined) updatesToSend.title = taskUpdates.title;
-
     if (taskUpdates.hasOwnProperty('description')) {
       updatesToSend.description = taskUpdates.description || "";
     }
-
     if (taskUpdates.status !== undefined) updatesToSend.status = taskUpdates.status;
-
     if (taskUpdates.hasOwnProperty('deadline')) {
       if (taskUpdates.deadline instanceof Date) {
         updatesToSend.deadline = Timestamp.fromDate(taskUpdates.deadline);
@@ -245,7 +250,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
          updatesToSend.deadline = Timestamp.fromDate(parseISO(taskUpdates.deadline));
       }
     }
-
+    if (taskUpdates.order !== undefined) updatesToSend.order = taskUpdates.order;
     if (taskUpdates.comments !== undefined) {
        updatesToSend.comments = taskUpdates.comments.map(c => {
         const firestoreComment: any = {
@@ -258,9 +263,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         if (c.fileURL !== undefined) {
           firestoreComment.fileURL = c.fileURL;
+        } else {
+          // Ensure undefined is not sent for fileURL
+          // firestoreComment.fileURL = null; // Or simply omit
         }
         if (c.fileName !== undefined) {
           firestoreComment.fileName = c.fileName;
+        } else {
+          // Ensure undefined is not sent for fileName
+          // firestoreComment.fileName = null; // Or simply omit
         }
         return firestoreComment;
       });
@@ -280,8 +291,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
-        const taskData = taskSnap.data(); // Firestore DocumentData, not local Task type
-        // Ensure comments is an array and has items before processing
+        const taskData = taskSnap.data(); 
         if (taskData.comments && Array.isArray(taskData.comments) && taskData.comments.length > 0) {
           const fileDeletionPromises: Promise<void>[] = [];
           console.log(`Task ${id}: Preparing to delete attachments for ${taskData.comments.length} comment(s).`);
@@ -295,7 +305,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     await deleteObject(fileRef);
                     console.log(`Task ${id}: Successfully deleted attachment ${comment.fileURL}`);
                   } catch (err: any) {
-                    // Log specific Firebase Storage errors if possible
                     if (err.code === 'storage/object-not-found') {
                       console.warn(`Task ${id}: Attachment ${comment.fileURL} not found in Firebase Storage. Skipping deletion.`);
                     } else {
@@ -326,7 +335,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const getTasksByProjectId = useCallback((projectId: string): Task[] => {
-    return tasks.filter((task) => task.projectId === projectId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return tasks
+      .filter((task) => task.projectId === projectId)
+      .sort((a, b) => {
+        const orderA = a.order;
+        const orderB = b.order;
+
+        if (orderA !== undefined && orderB !== undefined) {
+          return orderA - orderB; // Sort by 'order' ascending
+        }
+        if (orderA !== undefined) {
+          return -1; // 'a' has order, 'b' does not, so 'a' comes first
+        }
+        if (orderB !== undefined) {
+          return 1;  // 'b' has order, 'a' does not, so 'b' comes first
+        }
+        // If neither has 'order', sort by 'createdAt' ascending (oldest first for a list)
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
   }, [tasks]);
 
   const moveTask = useCallback(async (taskId: string, newStatus: TaskStatus) => {
@@ -337,11 +363,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error moving task: ", error);
     }
   }, []);
+  
+  const reorderTasksInList = useCallback(async (projectId: string, sourceIndex: number, destinationIndex: number) => {
+    const projectTasks = getTasksByProjectId(projectId);
+    if (sourceIndex < 0 || sourceIndex >= projectTasks.length || destinationIndex < 0 || destinationIndex >= projectTasks.length) {
+      console.error("Invalid source or destination index for reorder.");
+      return;
+    }
+
+    const reorderedTasks = Array.from(projectTasks);
+    const [movedTask] = reorderedTasks.splice(sourceIndex, 1);
+    reorderedTasks.splice(destinationIndex, 0, movedTask);
+
+    const batch = writeBatch(db);
+    reorderedTasks.forEach((task, index) => {
+      const taskDocRef = doc(db, 'tasks', task.id);
+      batch.update(taskDocRef, { order: index });
+    });
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      console.error("Error reordering tasks in list: ", error);
+      throw error;
+    }
+  }, [getTasksByProjectId]); // getTasksByProjectId is a dependency
+
 
   const addCommentToTask = useCallback(async (taskId: string, commentData: CommentData) => {
     const taskDocRef = doc(db, 'tasks', taskId);
-    
-    // Construct the comment object for Firestore, ensuring no undefined fields
     const commentPayloadForFirestore: {
       id: string;
       text: string;
@@ -351,7 +401,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } = {
       id: crypto.randomUUID(),
       text: commentData.text,
-      createdAt: Timestamp.fromDate(new Date()), // Use server timestamp for createdAt
+      createdAt: Timestamp.fromDate(new Date()),
     };
 
     if (commentData.fileURL !== undefined) {
@@ -381,7 +431,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const taskSnap = await getDoc(taskDocRef);
       if (taskSnap.exists()) {
         const taskData = taskSnap.data();
-        // Map Firestore comment data to local Comment structure (with string dates)
         let comments = (taskData.comments || []).map((c: any) => ({ 
           id: c.id,
           text: c.text,
@@ -395,20 +444,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         if (commentIndex > -1) {
           const oldComment = comments[commentIndex];
-          
-          // Create the updated local comment object
           const updatedLocalComment: Comment = {
             ...oldComment,
             text: updatedCommentData.text,
-            fileURL: updatedCommentData.fileURL, // This can be undefined if removed
-            fileName: updatedCommentData.fileName, // This can be undefined if removed
+            fileURL: updatedCommentData.fileURL, 
+            fileName: updatedCommentData.fileName, 
             updatedAt: Timestamp.fromDate(new Date()).toDate().toISOString(),
           };
-          
           comments[commentIndex] = updatedLocalComment;
 
-          // Convert the entire comments array back to Firestore format,
-          // carefully omitting undefined optional fields.
           const commentsForFirestore = comments.map(c_local => {
             const firestoreComment: any = {
               id: c_local.id,
@@ -418,6 +462,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (c_local.updatedAt) { 
               firestoreComment.updatedAt = Timestamp.fromDate(parseISO(c_local.updatedAt));
             }
+            // Only include fileURL and fileName if they are explicitly defined (not undefined)
             if (c_local.fileURL !== undefined) { 
               firestoreComment.fileURL = c_local.fileURL;
             }
@@ -426,7 +471,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }
             return firestoreComment;
           });
-
           await updateDoc(taskDocRef, { comments: commentsForFirestore });
         } else {
           console.error("Comment not found for update:", commentId);
@@ -460,6 +504,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         deleteTask,
         getTasksByProjectId,
         moveTask,
+        reorderTasksInList,
         addCommentToTask,
         updateCommentInTask,
       }}
@@ -476,4 +521,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

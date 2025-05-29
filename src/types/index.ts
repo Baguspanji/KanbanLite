@@ -22,6 +22,7 @@ export interface Task {
   projectId: string;
   createdAt: string; // Store as ISO string
   comments?: Comment[];
+  order?: number; // For manual list ordering
 }
 
 export interface Project {

@@ -28,38 +28,40 @@ export default function ProjectPage() {
   const projectId = params.projectId as string;
 
   useEffect(() => {
-    if (projectId && projects.length > 0) { // Ensure projects are loaded before trying to find one
+    if (projectId && projects.length > 0) {
       const foundProject = getProjectById(projectId);
       setProject(foundProject || null);
     } else if (projectId && !contextIsLoading && projects.length === 0) {
-      // Edge case: context done loading, projects is empty, so project not found
       setProject(null);
     }
-    // If contextIsLoading is true, project remains undefined, letting skeleton show
   }, [projectId, getProjectById, projects, contextIsLoading]);
 
   const handleProjectDeleted = () => {
     router.push('/');
   };
 
-  // Show skeleton if project details are not yet determined (project is undefined)
-  // This covers the initial phase where context might be loading or useEffect hasn't set the project yet.
   if (project === undefined) {
     return (
       <div className="space-y-6">
-        {/* Project Info Skeletons */}
-        <div className="flex-grow">
+        {/* Row 1: Project Info Skeletons + Edit/Delete Skeletons */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {/* Project Info Skeletons */}
+          <div className="flex-grow">
             <Skeleton className="h-8 w-1/4 mb-2" /> {/* Back Button placeholder */}
             <Skeleton className="h-10 w-3/4 mb-1" /> {/* Project Name */}
             <Skeleton className="h-5 w-full mb-4" /> {/* Project Description */}
-        </div>
-        
-        {/* Right Aligned Controls Skeleton */}
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
-            <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
-            <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
+          </div>
+          {/* Edit/Delete Project Skeletons */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
             <Skeleton className="h-10 w-32" /> {/* Edit Project button placeholder */}
             <Skeleton className="h-10 w-36" /> {/* Delete Project button placeholder */}
+          </div>
+        </div>
+
+        {/* Row 2: View Toggle and Add Task Skeletons */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2 border-t border-border/50 mt-4">
+          <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
+          <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
         </div>
         
         {/* Content Skeletons based on default viewMode */}
@@ -74,7 +76,6 @@ export default function ProjectPage() {
     );
   }
   
-  // Show "Project Not Found" if project is null (meaning lookup failed) AND context is no longer loading.
   if (project === null && !contextIsLoading) {
     return (
       <div className="text-center py-10">
@@ -89,30 +90,46 @@ export default function ProjectPage() {
     );
   }
 
-  // If project is null but contextIsLoading is still true, project === undefined case handles it.
-  // If we reach here, project must be a valid Project object.
-
   return (
     <div className="space-y-6">
-      {/* Main Header Row: Project Info (Left) and Controls (Right) */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        
-        {/* Left Side: Project Info & Back Button */}
-        <div className="flex-grow">
-          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-3 sm:-ml-2">
-            <Link href="/">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground break-words">{project.name}</h1>
-          {project.description && (
-            <p className="text-muted-foreground mt-1 max-w-2xl break-words">{project.description}</p>
-          )}
+      {/* Main Header Area */}
+      <div className="space-y-4">
+
+        {/* Row 1: Project Info (Left) vs Edit/Delete (Right) */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {/* Left Side: Project Info (Back Button, Title, Description) */}
+          <div className="flex-grow">
+            <Button variant="ghost" size="sm" asChild className="mb-2 -ml-3 sm:-ml-2">
+              <Link href="/">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground break-words">{project.name}</h1>
+            {project.description && (
+              <p className="text-muted-foreground mt-1 max-w-2xl break-words">{project.description}</p>
+            )}
+          </div>
+          
+          {/* Right Side: Edit/Delete Project Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
+            <CreateProjectDialog
+              project={project}
+              triggerButton={
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Edit3 className="mr-2 h-4 w-4" /> Edit Project
+                </Button>
+              }
+            />
+            <DeleteProjectDialog project={project} onDeleted={handleProjectDeleted} triggerButton={
+              <Button variant="destructive" className="w-full sm:w-auto">
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Project
+                </Button>
+            } />
+          </div>
         </div>
-        
-        {/* Right Side: Controls (Toggle Group + Action Buttons) */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
-          {/* View Toggle Group */}
+
+        {/* Row 2: View Toggle & Add Task Button (Now under Project Info) */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-3 border-t border-border/50 mt-3"> {/* Adjusted pt and mt for spacing */}
           <ToggleGroup 
             type="single" 
             value={viewMode} 
@@ -129,34 +146,19 @@ export default function ProjectPage() {
             </ToggleGroupItem>
           </ToggleGroup>
 
-          {/* Action Buttons */}
-           <CreateTaskDialog
+          <CreateTaskDialog
             projectId={projectId}
             defaultStatus="To Do" 
             triggerButton={
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto"> {/* Was Button variant="default" */}
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Task
               </Button>
             }
           />
-          <CreateProjectDialog
-            project={project}
-            triggerButton={
-              <Button variant="outline" className="w-full sm:w-auto">
-                <Edit3 className="mr-2 h-4 w-4" /> Edit Project
-              </Button>
-            }
-          />
-           <DeleteProjectDialog project={project} onDeleted={handleProjectDeleted} triggerButton={
-             <Button variant="destructive" className="w-full sm:w-auto">
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Project
-              </Button>
-           } />
         </div>
       </div>
       
       {/* Content Area based on viewMode */}
-      {/* KanbanBoard and TaskListComponent will handle their own internal loading state based on AppContext.isLoading */}
       {viewMode === 'kanban' ? (
         <KanbanBoard projectId={projectId} />
       ) : (

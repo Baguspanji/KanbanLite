@@ -1,19 +1,34 @@
+
 "use client";
 
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Project } from "@/types";
+import type { Project, Task } from "@/types";
 import { ArrowRight, Edit3 } from "lucide-react";
 import { CreateProjectDialog } from "./CreateProjectDialog";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
+import { Progress } from "@/components/ui/progress"; // Import Progress component
+import { useAppContext } from "@/context/AppContext"; // Import useAppContext
 import { formatDistanceToNow } from 'date-fns';
+import { useMemo } from 'react';
 
 interface ProjectItemProps {
   project: Project;
 }
 
 export function ProjectItem({ project }: ProjectItemProps) {
+  const { getTasksByProjectId } = useAppContext();
+
+  const projectTasks = useMemo(() => getTasksByProjectId(project.id), [getTasksByProjectId, project.id]);
+
+  const doneTasksCount = useMemo(() => {
+    return projectTasks.filter((task: Task) => task.status === 'Done').length;
+  }, [projectTasks]);
+
+  const totalTasksCount = projectTasks.length;
+  const progressPercentage = totalTasksCount > 0 ? (doneTasksCount / totalTasksCount) * 100 : 0;
+  
   const createdAtRelative = project.createdAt ? formatDistanceToNow(new Date(project.createdAt), { addSuffix: true }) : 'N/A';
 
   return (
@@ -24,8 +39,18 @@ export function ProjectItem({ project }: ProjectItemProps) {
           {project.description || "No description provided."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-xs text-muted-foreground">Created: {createdAtRelative}</p>
+      <CardContent className="flex-grow space-y-3">
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <p className="text-xs text-muted-foreground">Progress</p>
+            <p className="text-xs font-semibold text-primary">{Math.round(progressPercentage)}%</p>
+          </div>
+          <Progress value={progressPercentage} className="h-2" />
+           <p className="text-xs text-muted-foreground mt-1">
+            {doneTasksCount} of {totalTasksCount} tasks done
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground pt-2">Created: {createdAtRelative}</p>
       </CardContent>
       <CardFooter className="flex justify-between items-center border-t pt-4">
         <Link href={`/projects/${project.id}`} passHref>
@@ -49,3 +74,4 @@ export function ProjectItem({ project }: ProjectItemProps) {
     </Card>
   );
 }
+

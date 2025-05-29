@@ -34,11 +34,15 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
   };
 
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable 
+      key={task.id}
+      draggableId={task.id} 
+      index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
+          // dragHandleProps is applied to the specific handle element below
           className={`
             flex items-center gap-3
             p-3 border rounded-lg shadow-sm bg-card
@@ -50,7 +54,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
           }}
         >
           <div
-            {...provided.dragHandleProps}
+            {...provided.dragHandleProps} // Apply dragHandleProps here
             className="flex-shrink-0 cursor-grab text-muted-foreground hover:text-foreground transition-colors self-center py-2 px-1"
             aria-label="Drag task"
           >
@@ -81,7 +85,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
             {task.status}
           </Badge>
 
-          <div className="flex items-center gap-0.5 sm:gap-1 self-center ml-auto flex-shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-1 ml-auto flex-shrink-0">
             <TaskCommentsDialog
               task={task}
               triggerButton={

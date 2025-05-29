@@ -7,7 +7,7 @@ import { TaskListItem } from "./TaskListItem";
 import { TaskListSkeleton } from "./TaskListSkeleton";
 import { DragDropContext, Droppable, type OnDragEndResponder } from 'react-beautiful-dnd';
 import { useEffect, useState } from "react";
-import { FileText } from "lucide-react"; // Import FileText for empty state
+import { FileText } from "lucide-react";
 
 interface TaskListComponentProps {
   projectId: string;
@@ -54,16 +54,16 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable 
-        droppableId={`project-${projectId}-tasks`} 
+      <Droppable
+        droppableId={`project-${projectId}-tasks`}
         type="TASK_LIST_ITEM"
-        isDropDisabled={false} // Explicitly set prop
+        isDropDisabled={false}
       >
-        {(provided) => (
+        {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
             {...provided.droppableProps}
-            className="space-y-3 mt-4" // Added mt-4 for spacing from controls
+            ref={provided.innerRef}
+            className={`space-y-3 mt-4 transition-colors duration-200 ease-in-out ${snapshot.isDraggingOver ? 'bg-accent/10 rounded-md p-2' : 'p-0'}`}
           >
             {tasks.map((task, index) => (
               <TaskListItem key={task.id} task={task} projectId={projectId} index={index} />
@@ -75,4 +75,3 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
     </DragDropContext>
   );
 }
-

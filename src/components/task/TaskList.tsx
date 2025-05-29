@@ -11,6 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableCell, // Import TableCell
 } from "@/components/ui/table";
 import { FileText } from "lucide-react";
 import { TaskListSkeleton } from "./TaskListSkeleton";
@@ -84,7 +85,18 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
                 {tasks.map((task, index) => (
                   <TaskListItem key={task.id} task={task} projectId={projectId} index={index} />
                 ))}
-                {provided.placeholder}
+                {/*
+                  Wrap the placeholder in a TableRow and TableCell to make it a valid child of TableBody.
+                  The placeholder element from react-beautiful-dnd is used for spacing and calculations.
+                  The TableCell needs to span all columns.
+                */}
+                {provided.placeholder && (
+                  <TableRow style={{display: "none"}}> {/* Visually hide the row if not needed by rbd for layout */}
+                    <TableCell colSpan={6} style={{ padding: 0, border: 'none' }}>
+                      {provided.placeholder}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             )}
           </Droppable>

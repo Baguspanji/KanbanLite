@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { GripVertical } from "lucide-react";
 
 export function TaskListSkeleton() {
   return (
@@ -19,6 +20,9 @@ export function TaskListSkeleton() {
         <TableCaption className="py-4">Loading tasks...</TableCaption>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-px pr-0 pl-2"> {/* Drag handle column */}
+              <GripVertical className="h-5 w-5 text-muted-foreground/50" />
+            </TableHead>
             <TableHead className="w-[40%] min-w-[200px]">Title</TableHead>
             <TableHead className="min-w-[100px]">Status</TableHead>
             <TableHead className="min-w-[120px]">Deadline</TableHead>
@@ -29,6 +33,9 @@ export function TaskListSkeleton() {
         <TableBody>
           {[...Array(5)].map((_, index) => (
             <TableRow key={index}>
+              <TableCell className="w-px pr-0 pl-3 py-3"> {/* Drag handle cell */}
+                <Skeleton className="h-5 w-5" />
+              </TableCell>
               <TableCell>
                 <Skeleton className="h-5 w-3/4 mb-1" />
                 <Skeleton className="h-3 w-full" />

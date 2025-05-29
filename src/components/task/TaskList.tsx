@@ -13,22 +13,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText } from "lucide-react";
+import { TaskListSkeleton } from "./TaskListSkeleton"; // Import the skeleton
 
 interface TaskListComponentProps {
   projectId: string;
 }
 
 export function TaskListComponent({ projectId }: TaskListComponentProps) {
-  const { getTasksByProjectId, isLoading } = useAppContext();
-  const tasks = getTasksByProjectId(projectId);
-
-  // Sort tasks by creation date, newest first
-  const sortedTasks = [...tasks].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const { getTasksByProjectId, isLoading } = useAppContext(); // isLoading is from AppContext
 
   if (isLoading) {
-    // Skeleton handled by parent ProjectPage for now, or could use TaskListSkeleton here
-    return <div>Loading tasks...</div>; 
+    return <TaskListSkeleton />; // Use the skeleton when AppContext is loading
   }
+
+  const tasks = getTasksByProjectId(projectId);
+  // Sort tasks by creation date, newest first
+  const sortedTasks = [...tasks].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   if (sortedTasks.length === 0) {
     return (

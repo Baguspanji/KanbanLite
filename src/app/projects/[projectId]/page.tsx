@@ -28,19 +28,23 @@ export default function ProjectPage() {
   const projectId = params.projectId as string;
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && projects.length > 0) { // Ensure projects are loaded before trying to find one
       const foundProject = getProjectById(projectId);
       setProject(foundProject || null);
+    } else if (projectId && !contextIsLoading && projects.length === 0) {
+      // Edge case: context done loading, projects is empty, so project not found
+      setProject(null);
     }
-  }, [projectId, getProjectById, projects]);
+    // If contextIsLoading is true, project remains undefined, letting skeleton show
+  }, [projectId, getProjectById, projects, contextIsLoading]);
 
   const handleProjectDeleted = () => {
     router.push('/');
   };
 
-  const isLoading = contextIsLoading || project === undefined;
-
-  if (isLoading && project === undefined) { // Initial loading state for project details
+  // Show skeleton if project details are not yet determined (project is undefined)
+  // This covers the initial phase where context might be loading or useEffect hasn't set the project yet.
+  if (project === undefined) {
     return (
       <div className="space-y-6">
         {/* Project Info Skeletons */}
@@ -51,12 +55,14 @@ export default function ProjectPage() {
         </div>
         
         {/* Right Aligned Controls Skeleton */}
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full">
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
             <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
             <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
+            <Skeleton className="h-10 w-32" /> {/* Edit Project button placeholder */}
+            <Skeleton className="h-10 w-36" /> {/* Delete Project button placeholder */}
         </div>
         
-        {/* Content Skeletons */}
+        {/* Content Skeletons based on default viewMode */}
         {viewMode === 'kanban' ? (
             <div className="flex gap-6 pb-4 overflow-x-auto">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
@@ -68,7 +74,8 @@ export default function ProjectPage() {
     );
   }
   
-  if (project === null && !contextIsLoading) { // Project not found after loading finished
+  // Show "Project Not Found" if project is null (meaning lookup failed) AND context is no longer loading.
+  if (project === null && !contextIsLoading) {
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold mb-4">Project Not Found</h2>
@@ -81,41 +88,9 @@ export default function ProjectPage() {
       </div>
     );
   }
-  
-  if (!project && isLoading) {
-     // If project data is not yet available but context is loading, show project info skeletons + view skeletons
-    return (
-      <div className="space-y-6">
-        {/* Project Info Skeletons */}
-        <div className="flex-grow">
-            <Skeleton className="h-8 w-1/4 mb-2" />
-            <Skeleton className="h-10 w-3/4 mb-1" />
-            <Skeleton className="h-5 w-full mb-4" />
-        </div>
-        
-        {/* Right Aligned Controls Skeleton */}
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 w-full">
-            <Skeleton className="h-10 w-[150px] sm:w-40" /> {/* View Toggle Placeholder */}
-            <Skeleton className="h-10 w-32" /> {/* Add Task button placeholder */}
-            <Skeleton className="h-10 w-32" /> {/* Edit Project button placeholder */}
-            <Skeleton className="h-10 w-36" /> {/* Delete Project button placeholder */}
-        </div>
 
-        {viewMode === 'kanban' ? (
-            <div className="flex gap-6 pb-4 overflow-x-auto">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
-            </div>
-        ) : (
-          <TaskListSkeleton />
-        )}
-      </div>
-    );
-  }
-
-  if (!project) { // Should ideally be covered by the null check above, but as a fallback
-    return <div>Loading project details or project not found...</div>;
-  }
-
+  // If project is null but contextIsLoading is still true, project === undefined case handles it.
+  // If we reach here, project must be a valid Project object.
 
   return (
     <div className="space-y-6">
@@ -181,12 +156,12 @@ export default function ProjectPage() {
       </div>
       
       {/* Content Area based on viewMode */}
-      {isLoading && (viewMode === 'kanban') && <KanbanBoard projectId={projectId} />} 
-      {isLoading && (viewMode === 'list') && <TaskListSkeleton />} 
-
-      {!isLoading && viewMode === 'kanban' && <KanbanBoard projectId={projectId} />}
-      {!isLoading && viewMode === 'list' && <TaskListComponent projectId={projectId} />}
+      {/* KanbanBoard and TaskListComponent will handle their own internal loading state based on AppContext.isLoading */}
+      {viewMode === 'kanban' ? (
+        <KanbanBoard projectId={projectId} />
+      ) : (
+        <TaskListComponent projectId={projectId} />
+      )}
     </div>
   );
 }
-

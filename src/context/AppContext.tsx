@@ -5,7 +5,7 @@ import type { Project, Task, TaskStatus, Comment } from '@/types';
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { formatISO, parseISO } from 'date-fns';
-import { db } from '@/lib/firebase'; // Changed import
+import { db } from '@/lib/firebase';
 import {
   collection,
   onSnapshot,
@@ -24,6 +24,12 @@ import {
 
 type Theme = 'light' | 'dark';
 
+interface CommentData {
+  text: string;
+  fileURL?: string;
+  fileName?: string;
+}
+
 interface AppContextType {
   projects: Project[];
   tasks: Task[];
@@ -38,8 +44,8 @@ interface AppContextType {
   deleteTask: (id: string) => Promise<void>;
   getTasksByProjectId: (projectId: string) => Task[];
   moveTask: (taskId: string, newStatus: TaskStatus) => Promise<void>;
-  addCommentToTask: (taskId: string, commentText: string) => Promise<void>;
-  isLoading: boolean; // To indicate data loading state
+  addCommentToTask: (taskId: string, commentData: CommentData) => Promise<void>;
+  isLoading: boolean; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -60,7 +66,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  // Firestore Listeners
   useEffect(() => {
     setIsLoading(true);
     const projectsCollectionRef = collection(db, 'projects');
@@ -74,10 +79,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         createdAt: (doc.data().createdAt as Timestamp).toDate().toISOString(),
       } as Project));
       setProjects(loadedProjects);
-      // Avoid premature loading state change if tasks are not yet loaded.
-      if (!snapshot.metadata.hasPendingWrites && tasks.length > 0 || snapshot.empty) {
-         // setIsLoading(false); // This might cause issues if tasks are still loading
-      }
     }, (error) => {
       console.error("Error fetching projects: ", error);
       setIsLoading(false);
@@ -94,12 +95,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           deadline: data.deadline ? (data.deadline as Timestamp).toDate().toISOString() : undefined,
           comments: (data.comments || []).map((comment: any) => ({
             ...comment,
-            createdAt: (comment.createdAt as Timestamp).toDate().toISOString(),
+            // Ensure comment.createdAt is handled correctly, might be already string or Timestamp from Firestore
+            createdAt: comment.createdAt instanceof Timestamp 
+                        ? comment.createdAt.toDate().toISOString() 
+                        : (typeof comment.createdAt === 'string' ? comment.createdAt : new Date().toISOString()),
           })),
         } as Task;
       });
       setTasks(loadedTasks);
-      setIsLoading(false); // Set loading to false after tasks (and potentially projects) are loaded
+      setIsLoading(false); 
     }, (error) => {
       console.error("Error fetching tasks: ", error);
       setIsLoading(false);
@@ -109,7 +113,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       unsubscribeProjects();
       unsubscribeTasks();
     };
-  }, []); // tasks dependency removed to avoid re-subscribing excessively. Loading managed better.
+  }, []);
 
   const addProject = useCallback(async (name: string, description?: string): Promise<Project | null> => {
     const newProjectData = {
@@ -188,11 +192,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const taskDocRef = doc(db, 'tasks', id);
     const updatesToSend: { [key: string]: any } = {};
 
-    // Iterate over known updatable fields to build the updates object
     if (taskUpdates.title !== undefined) updatesToSend.title = taskUpdates.title;
     
     if (taskUpdates.hasOwnProperty('description')) {
-      updatesToSend.description = taskUpdates.description || ""; // Allow clearing
+      updatesToSend.description = taskUpdates.description || ""; 
     }
 
     if (taskUpdates.status !== undefined) updatesToSend.status = taskUpdates.status;
@@ -201,27 +204,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (taskUpdates.deadline instanceof Date) {
         updatesToSend.deadline = Timestamp.fromDate(taskUpdates.deadline);
       } else if (taskUpdates.deadline === null) {
-        updatesToSend.deadline = null; // Explicitly set to null if cleared
-      } else if (typeof taskUpdates.deadline === 'string') { // Handle ISO string from state
+        updatesToSend.deadline = null; 
+      } else if (typeof taskUpdates.deadline === 'string') {
          updatesToSend.deadline = Timestamp.fromDate(parseISO(taskUpdates.deadline));
       }
-      // If taskUpdates.deadline is undefined, it's not included, so field isn't changed.
     }
     
-    // Comments are handled by addCommentToTask using arrayUnion.
-    // Avoid accidental overwrite of comments array if not explicitly passed.
     if (taskUpdates.comments !== undefined) {
-      // This case should ideally not happen if comments are only managed by addCommentToTask.
-      // If it does, ensure timestamps are correct or handle appropriately.
-      // For now, we assume `addCommentToTask` is the primary way to modify comments.
        updatesToSend.comments = taskUpdates.comments.map(c => ({
         ...c,
-        createdAt: Timestamp.fromDate(parseISO(c.createdAt)) // Ensure comment createdAt is also Timestamp
+        createdAt: c.createdAt instanceof Timestamp ? c.createdAt : Timestamp.fromDate(parseISO(c.createdAt)) 
       }));
     }
 
-
-    if (Object.keys(updatesToSend).length === 0) return; // No actual updates
+    if (Object.keys(updatesToSend).length === 0) return;
 
     try {
       await updateDoc(taskDocRef, updatesToSend);
@@ -252,21 +248,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const addCommentToTask = useCallback(async (taskId: string, commentText: string) => {
+  const addCommentToTask = useCallback(async (taskId: string, commentData: CommentData) => {
     const taskDocRef = doc(db, 'tasks', taskId);
-    const newComment = {
+    const newComment: Partial<Comment> & {createdAt: Timestamp} = {
       id: crypto.randomUUID(),
-      text: commentText,
-      createdAt: Timestamp.fromDate(new Date()), // Store as Firestore Timestamp
+      text: commentData.text,
+      createdAt: Timestamp.fromDate(new Date()),
     };
+
+    if (commentData.fileURL) {
+      newComment.fileURL = commentData.fileURL;
+    }
+    if (commentData.fileName) {
+      newComment.fileName = commentData.fileName;
+    }
+
     try {
-      // arrayUnion adds the element if it's not already present.
-      // For comments, each is unique due to ID and timestamp.
       await updateDoc(taskDocRef, {
         comments: arrayUnion(newComment)
       });
     } catch (error) {
       console.error("Error adding comment: ", error);
+      throw error; // Re-throw to be caught by the calling component
     }
   }, []);
 

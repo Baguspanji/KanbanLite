@@ -31,7 +31,13 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
            <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{tasks.length}</span>
         </div>
       </div>
-      <Droppable droppableId={title} type="TASK" isDropDisabled={false} isCombineEnabled={false}>
+      <Droppable 
+        droppableId={title} 
+        type="TASK" 
+        isDropDisabled={false} 
+        isCombineEnabled={false}
+        ignoreContainerClipping={false} // Explicitly set prop
+      >
         {(provided, snapshot) => (
           <ScrollArea 
             className={`flex-grow p-4 pt-2 transition-colors duration-200 ease-in-out ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}

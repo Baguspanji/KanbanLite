@@ -8,10 +8,10 @@ import type { Project, Task } from "@/types";
 import { ArrowRight, Edit3 } from "lucide-react";
 import { CreateProjectDialog } from "./CreateProjectDialog";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
-import { Progress } from "@/components/ui/progress"; // Import Progress component
-import { useAppContext } from "@/context/AppContext"; // Import useAppContext
+import { Progress } from "@/components/ui/progress";
+import { useAppContext } from "@/context/AppContext";
 import { formatDistanceToNow } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react'; // Added useState, useEffect
 
 interface ProjectItemProps {
   project: Project;
@@ -19,6 +19,11 @@ interface ProjectItemProps {
 
 export function ProjectItem({ project }: ProjectItemProps) {
   const { getTasksByProjectId } = useAppContext();
+  const [hasMounted, setHasMounted] = useState(false); // State to track client-side mount
+
+  useEffect(() => {
+    setHasMounted(true); // Set to true after component mounts on client
+  }, []);
 
   const projectTasks = useMemo(() => getTasksByProjectId(project.id), [getTasksByProjectId, project.id]);
 
@@ -53,11 +58,18 @@ export function ProjectItem({ project }: ProjectItemProps) {
         <p className="text-xs text-muted-foreground pt-2">Created: {createdAtRelative}</p>
       </CardContent>
       <CardFooter className="flex justify-between items-center border-t pt-4">
-        <Link href={`/projects/${project.id}`} passHref>
-          <Button variant="outline" size="sm">
+        {hasMounted ? ( // Only render the Link component on the client after mount
+          <Link href={`/projects/${project.id}`} passHref>
+            <Button variant="outline" size="sm">
+              Open Board <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        ) : (
+          // Render a placeholder or disabled button during SSR/build and pre-hydration
+          <Button variant="outline" size="sm" disabled>
             Open Board <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-        </Link>
+        )}
         <div className="flex gap-2">
           <CreateProjectDialog 
             project={project} 
@@ -74,4 +86,3 @@ export function ProjectItem({ project }: ProjectItemProps) {
     </Card>
   );
 }
-

@@ -1,7 +1,9 @@
 
 export type TaskStatus = 'To Do' | 'On Dev' | 'On QA' | 'Done';
-
 export const TASK_STATUSES: TaskStatus[] = ['To Do', 'On Dev', 'On QA', 'Done'];
+
+export type TaskPriority = 'Low' | 'Medium' | 'High';
+export const TASK_PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High'];
 
 export interface Comment {
   id: string;
@@ -21,6 +23,7 @@ export interface Task {
   description?: string;
   deadline?: string; // Store as ISO string (e.g., YYYY-MM-DD)
   status: TaskStatus;
+  priority?: TaskPriority; // New field for task priority
   createdAt: string; // Store as ISO string
   comments?: Comment[];
   order?: number; // For manual list ordering

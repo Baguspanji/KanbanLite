@@ -44,8 +44,10 @@ const commentFormSchema = z.object({
 type CommentFormValues = z.infer<typeof commentFormSchema>;
 
 interface TaskCommentsDialogProps {
-  task: Task; // Task object now includes projectId
+  task: Task; 
   triggerButton: React.ReactNode;
+  open?: boolean; // For programmatic control
+  onOpenChange?: (open: boolean) => void; // For programmatic control
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -97,9 +99,12 @@ async function convertToWebP(file: File, quality = 0.8): Promise<File> {
 }
 
 
-export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogProps) {
+export function TaskCommentsDialog({ task, triggerButton, open: controlledOpen, onOpenChange: controlledOnOpenChange }: TaskCommentsDialogProps) {
   const { addCommentToTask, updateCommentInTask } = useAppContext();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -133,7 +138,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     if (!isOpen) {
       resetFormAndState();
     }
-  }, [isOpen, task]);
+  }, [isOpen]); // Removed task from deps to prevent reset on task data change if dialog is open
 
   const revokeCurrentImagePreview = () => {
     if (imagePreviewUrl && imagePreviewUrl.startsWith('blob:')) {
@@ -258,7 +263,6 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
           oldFileToDelete = editingComment.fileURL;
         }
         setUploadProgress(0);
-        // task.id is now task.id (which is the taskId)
         const storagePath = `task_attachments/${task.projectId}/${task.id}/${Date.now()}_${selectedFile.name}`;
         const fileStorageRefInstance = storageRefFB(storage, storagePath);
         const uploadTask = uploadBytesResumable(fileStorageRefInstance, selectedFile);
@@ -323,10 +327,13 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
   }, [task.comments]);
 
   const submitButtonDisabled = isProcessing || isConvertingFile || !form.formState.isValid || (!!fileError && attachmentAction !== 'remove' && !selectedFile);
+  
+  const dialogTrigger = triggerButton || <Button variant="outline">Open Comments</Button>;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+      {!controlledOpen && <DialogTrigger asChild>{dialogTrigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md md:max-w-lg flex flex-col h-[calc(min(85vh,700px))]">
         <DialogHeader>
           <DialogTitle>{editingComment ? 'Edit Comment' : `Comments for "${task.title}"`}</DialogTitle>
@@ -474,7 +481,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
                  type="button" 
                  variant="ghost" 
                  className="w-full sm:w-auto sm:mr-auto" 
-                 onClick={() => { resetFormAndState(); setIsOpen(false);}} 
+                 onClick={() => { setIsOpen(false);}} // No full reset here, only close
                  disabled={isProcessing || isConvertingFile}
                 >
                 Close

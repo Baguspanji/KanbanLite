@@ -29,8 +29,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppContext } from "@/context/AppContext";
-import type { Task, TaskStatus } from "@/types"; // Task type no longer has projectId for direct storage
-import { TASK_STATUSES } from "@/types";
+import type { Task, TaskStatus, TaskPriority } from "@/types";
+import { TASK_STATUSES, TASK_PRIORITIES } from "@/types";
 import { PlusCircle, Edit3, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format, parseISO } from 'date-fns';
@@ -42,13 +42,14 @@ const taskFormSchema = z.object({
   description: z.string().max(500, "Description must be 500 characters or less.").optional(),
   deadline: z.date().optional().nullable(),
   status: z.enum(TASK_STATUSES as [string, ...string[]]),
+  priority: z.enum(TASK_PRIORITIES as [string, ...string[]]).optional(),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 interface CreateTaskDialogProps {
-  projectId: string; // Still needed to know where to add/update the task
-  task?: Task; // For editing, this task object will include projectId from AppContext
+  projectId: string;
+  task?: Task;
   triggerButton?: React.ReactNode;
   defaultStatus?: TaskStatus;
 }
@@ -65,6 +66,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
       description: "",
       deadline: undefined,
       status: defaultStatus,
+      priority: 'Medium',
     },
   });
 
@@ -75,6 +77,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         description: task.description || "",
         deadline: task.deadline ? parseISO(task.deadline) : undefined,
         status: task.status,
+        priority: task.priority || 'Medium',
       });
     } else if (!task && isOpen) {
       form.reset({
@@ -82,6 +85,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         description: "",
         deadline: undefined,
         status: defaultStatus,
+        priority: 'Medium',
       });
     }
   }, [task, isOpen, form, defaultStatus]);
@@ -89,18 +93,16 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
   const onSubmit = (data: TaskFormValues) => {
     try {
       if (task) {
-        // For updateTask, we pass projectId and taskId separately.
-        // The 'updates' object should not contain projectId.
         updateTask(projectId, task.id, { 
           title: data.title, 
           description: data.description, 
           deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined,
-          status: data.status as TaskStatus
+          status: data.status as TaskStatus,
+          priority: data.priority as TaskPriority,
         });
         toast({ title: "Task Updated", description: `Task "${data.title}" has been updated.` });
       } else {
-        // addTask still needs projectId, but it's not part of the task document data.
-        addTask(projectId, data.title, data.description, data.deadline || undefined, data.status as TaskStatus);
+        addTask(projectId, data.title, data.description, data.deadline || undefined, data.status as TaskStatus, data.priority as TaskPriority);
         toast({ title: "Task Created", description: `Task "${data.title}" has been created.` });
       }
       setIsOpen(false);
@@ -160,45 +162,71 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="deadline"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Deadline (Optional)</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="deadline"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Deadline (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={field.onChange}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || 'Medium'}>
                       <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select task priority" />
+                        </SelectTrigger>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value || undefined}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      <SelectContent>
+                        {TASK_PRIORITIES.map((priority) => (
+                          <SelectItem key={priority} value={priority}>
+                            {priority}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="status"

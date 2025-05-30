@@ -1,26 +1,21 @@
 
 "use client";
 
-import { ProjectList } from "@/components/project/ProjectList";
-import { CreateProjectDialog } from "@/components/project/CreateProjectDialog";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Your Projects</h1>
-        <CreateProjectDialog 
-          triggerButton={
-            <Button size="lg" className="w-full sm:w-auto">
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Create New Project
-            </Button>
-          }
-        />
-      </div>
-      <ProjectList />
+    <div className="flex flex-col items-center justify-center h-screen space-y-8 text-center">
+      <h1 className="text-4xl font-bold tracking-tight text-foreground">Welcome to KanbanLite</h1>
+      <p className="text-lg text-muted-foreground max-w-md">
+        A simple and intuitive Kanban board application to help you manage your projects and tasks efficiently.
+      </p>
+      <Button asChild className="w-full sm:w-auto">
+        <Link href="/projects">
+          Get Started with Your First Project
+        </Link>
+      </Button>
     </div>
   );
 }

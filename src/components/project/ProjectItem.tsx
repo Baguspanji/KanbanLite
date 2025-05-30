@@ -51,7 +51,7 @@ export function ProjectItem({ project }: ProjectItemProps) {
             <p className="text-xs font-semibold text-primary">{Math.round(progressPercentage)}%</p>
           </div>
           <Progress value={progressPercentage} className="h-2" />
-           <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             {doneTasksCount} of {totalTasksCount} tasks done
           </p>
         </div>
@@ -59,7 +59,7 @@ export function ProjectItem({ project }: ProjectItemProps) {
       </CardContent>
       <CardFooter className="flex justify-between items-center border-t pt-4">
         {hasMounted ? ( // Only render the Link component on the client after mount
-          <Link href={`/projects/${project.id}`} passHref>
+          <Link href={`/projects/project?projectId=${project.id}`} passHref>
             <Button variant="outline" size="sm">
               Open Board <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

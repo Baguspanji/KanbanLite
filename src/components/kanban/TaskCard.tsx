@@ -43,7 +43,6 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
       draggableId={task.id}
       index={index}
       isDragDisabled={false}
-      ignoreContainerClipping={false}
     >
       {(provided, snapshot) => (
         <Card
@@ -53,7 +52,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
           style={{ ...provided.draggableProps.style }}
         >
           <div className="flex items-start p-3">
-             <div {...provided.dragHandleProps} className="cursor-grab pt-0.5 pr-2 text-muted-foreground hover:text-foreground flex-shrink-0">
+            <div {...provided.dragHandleProps} className="cursor-grab pt-0.5 pr-2 text-muted-foreground hover:text-foreground flex-shrink-0">
               <GripVertical className="h-4 w-4" />
             </div>
             <div className="flex-grow min-w-0 space-y-1">

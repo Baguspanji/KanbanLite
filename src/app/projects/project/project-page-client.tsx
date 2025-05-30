@@ -1,14 +1,13 @@
-
 "use client";
 
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { Button } from '@/components/ui/button';
 import { CreateTaskDialog } from '@/components/kanban/CreateTaskDialog';
 import { ArrowLeft, PlusCircle, Edit3, Trash2, LayoutGrid, ListFilter } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import type { Project } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreateProjectDialog } from '@/components/project/CreateProjectDialog';
@@ -18,13 +17,13 @@ import { TaskListSkeleton } from '@/components/task/TaskListSkeleton';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useLocalStorage from '@/hooks/useLocalStorage';
 
-export default function ProjectPageClient() {
-  const params = useParams();
+function ProjectPageContent() {
+  const params = useSearchParams();
   const router = useRouter();
   const { getProjectById, projects, isLoading: contextIsLoading } = useAppContext();
   const [project, setProject] = useState<Project | undefined | null>(undefined);
   
-  const projectId = params.projectId as string;
+  const projectId = params.get('projectId') || '';
   
   const [viewMode, setViewMode] = useLocalStorage<'kanban' | 'list'>(
     `kanbanlite-viewmode-${projectId}`, 
@@ -166,5 +165,36 @@ export default function ProjectPageClient() {
         <TaskListComponent projectId={projectId} />
       )}
     </div>
+  );
+}
+
+export default function ProjectPageClient() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex-grow">
+            <Skeleton className="h-8 w-1/4 mb-2" /> 
+            <Skeleton className="h-10 w-3/4 mb-1" /> 
+            <Skeleton className="h-5 w-full mb-4" /> 
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto self-start sm:self-center md:self-center mt-4 md:mt-0 flex-shrink-0">
+            <Skeleton className="h-10 w-32" /> 
+            <Skeleton className="h-10 w-36" /> 
+          </div>
+        </div>
+        
+        <div className="flex flex-row items-center justify-between gap-3 pt-3 border-t border-border/50 mt-3">
+            <Skeleton className="h-10 w-[150px] sm:w-40 px-4" />
+            <Skeleton className="h-10 w-32" />
+        </div>
+        
+        <div className="flex gap-6 pb-4 overflow-x-auto">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[400px] w-[320px] min-w-[300px] flex-shrink-0 rounded-lg" />)}
+        </div>
+      </div>
+    }>
+      <ProjectPageContent />
+    </Suspense>
   );
 }

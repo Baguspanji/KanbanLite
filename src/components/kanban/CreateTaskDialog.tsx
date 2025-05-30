@@ -52,12 +52,33 @@ interface CreateTaskDialogProps {
   task?: Task;
   triggerButton?: React.ReactNode;
   defaultStatus?: TaskStatus;
+  open?: boolean; // For controlled mode
+  onOpenChange?: (open: boolean) => void; // For controlled mode
 }
 
-export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus = 'To Do' }: CreateTaskDialogProps) {
+export function CreateTaskDialog({
+  projectId,
+  task,
+  triggerButton,
+  defaultStatus = 'To Do',
+  open: controlledOpen,
+  onOpenChange: controlledSetOpen,
+}: CreateTaskDialogProps) {
   const { addTask, updateTask } = useAppContext();
-  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
+
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+
+  const isControlled = controlledOpen !== undefined && controlledSetOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalIsOpen;
+
+  const handleRadixOpenChange = (newOpenState: boolean) => {
+    if (isControlled) {
+      controlledSetOpen(newOpenState);
+    } else {
+      setInternalIsOpen(newOpenState);
+    }
+  };
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -79,7 +100,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         status: task.status,
         priority: task.priority || 'Medium',
       });
-    } else if (!task && isOpen) {
+    } else if (!task && isOpen) { // Only reset to default if creating new and dialog opens
       form.reset({
         title: "",
         description: "",
@@ -88,14 +109,21 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         priority: 'Medium',
       });
     }
+    // Reset form if dialog closes and it was an edit operation
+    if (!isOpen && task && form.formState.isDirty) {
+        // Optionally, you can reset to initial values if the dialog for an existing task is closed without saving.
+        // This depends on desired UX. For now, the above logic handles reset on open.
+    }
+
   }, [task, isOpen, form, defaultStatus]);
+
 
   const onSubmit = (data: TaskFormValues) => {
     try {
       if (task) {
-        updateTask(projectId, task.id, { 
-          title: data.title, 
-          description: data.description, 
+        updateTask(projectId, task.id, {
+          title: data.title,
+          description: data.description,
           deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined,
           status: data.status as TaskStatus,
           priority: data.priority as TaskPriority,
@@ -105,22 +133,27 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         addTask(projectId, data.title, data.description, data.deadline || undefined, data.status as TaskStatus, data.priority as TaskPriority);
         toast({ title: "Task Created", description: `Task "${data.title}" has been created.` });
       }
-      setIsOpen(false);
-      form.reset();
+      handleRadixOpenChange(false); // Close dialog
+      // Form is reset by useEffect when isOpen changes or task changes
     } catch (error) {
       toast({ title: "Error", description: "Failed to save task. Please try again.", variant: "destructive" });
       console.error("Failed to save task:", error);
     }
   };
+  
+  const defaultTriggerContent = (
+    <Button variant="outline" size="sm">
+      <PlusCircle className="mr-2 h-4 w-4" /> Add Task
+    </Button>
+  );
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleRadixOpenChange}>
       <DialogTrigger asChild>
-        {triggerButton ? triggerButton : (
-          <Button variant="outline" size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Task
-          </Button>
-        )}
+        {/* If triggerButton is explicitly undefined and not controlled, use default.
+            If triggerButton is provided (even null/span for controlled), use that.
+        */}
+        {triggerButton !== undefined ? triggerButton : defaultTriggerContent}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
@@ -252,7 +285,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
               )}
             />
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsOpen(false)}>
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => handleRadixOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" className="w-full sm:w-auto" disabled={form.formState.isSubmitting}>
@@ -265,3 +298,5 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
     </Dialog>
   );
 }
+
+    

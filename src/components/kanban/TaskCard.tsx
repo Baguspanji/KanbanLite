@@ -62,7 +62,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
         <Card
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
+          className={`w-full mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
           style={{
             ...provided.draggableProps.style,
           }}

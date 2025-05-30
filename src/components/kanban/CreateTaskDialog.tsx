@@ -128,7 +128,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2 max-h-[70vh] overflow-y-auto px-2">
             <FormField
               control={form.control}
               name="title"

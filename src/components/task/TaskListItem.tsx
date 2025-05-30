@@ -15,10 +15,11 @@ import { useState } from "react";
 
 interface TaskListItemProps {
   task: Task;
+  projectId: string; // projectId is needed by dialogs
   index: number;
 }
 
-export function TaskListItem({ task, index }: TaskListItemProps) {
+export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isDeleteTaskOpen, setIsDeleteTaskOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -26,11 +27,11 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
   const getPriorityBadgeClass = (priority?: TaskPriority) => {
     switch (priority) {
       case 'Low':
-        return 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-700';
+        return 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700';
       case 'Medium':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700';
+        return 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700';
       case 'High':
-        return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700';
+        return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700';
       default:
         return 'bg-muted text-muted-foreground border-transparent';
     }
@@ -39,13 +40,13 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
   const getStatusBadgeStyle = (status: TaskStatus): {dot: string, badge: string} => {
     switch (status) {
       case 'To Do':
-        return { dot: 'bg-amber-500', badge: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700' };
+        return { dot: 'bg-yellow-400', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700' };
       case 'On Dev':
-        return { dot: 'bg-sky-500', badge: 'bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-700' };
+        return { dot: 'bg-blue-400', badge: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700' };
       case 'On QA':
-        return { dot: 'bg-pink-500', badge: 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-700' };
+        return { dot: 'bg-orange-400', badge: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700' };
       case 'Done':
-        return { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700' };
+        return { dot: 'bg-pink-500', badge: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-700' };
       default:
         return { dot: 'bg-gray-400', badge: 'bg-muted text-muted-foreground border-transparent' };
     }
@@ -79,7 +80,7 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-grow min-w-0 space-y-1">
+          <div className="flex-grow min-w-0 space-y-0.5">
             <h3 className="font-medium break-words text-sm">{task.title}</h3>
             {task.description && (
               <p className="text-xs text-muted-foreground line-clamp-1 break-words" title={task.description}>
@@ -95,7 +96,7 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
           {/* Right Aligned Info & Actions */}
           <div className="flex items-center gap-3 sm:gap-4 ml-auto flex-shrink-0">
             {task.priority && (
-              <Badge variant="outline" className={`text-xs px-2 py-0.5 h-6 hidden sm:inline-flex ${getPriorityBadgeClass(task.priority)}`}>
+              <Badge variant="outline" className={`text-xs px-2 py-0.5 h-6 sm:inline-flex ${getPriorityBadgeClass(task.priority)}`}>
                 {task.priority}
               </Badge>
             )}
@@ -103,12 +104,17 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
               <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`}></span>
               {task.status}
             </Badge>
-            {task.comments && task.comments.length > 0 && (
-              <div className="flex items-center text-xs text-muted-foreground">
-                <MessageSquare className="h-4 w-4 mr-1" />
-                {task.comments.length}
-              </div>
-            )}
+            
+            <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={() => setIsCommentsOpen(true)}>
+                <MessageSquare className="h-4 w-4" />
+                {task.comments && task.comments.length > 0 && (
+                <span className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1 rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
+                    {task.comments.length}
+                </span>
+                )}
+                <span className="sr-only">View Comments</span>
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -132,7 +138,7 @@ export function TaskListItem({ task, index }: TaskListItemProps) {
 
           {/* Dialogs for actions */}
           <CreateTaskDialog
-            projectId={task.projectId}
+            projectId={projectId}
             task={task}
             open={isCreateTaskOpen}
             onOpenChange={setIsCreateTaskOpen}

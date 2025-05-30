@@ -14,6 +14,10 @@ export async function generateStaticParams() {
   return [];
 }
 
+// Explicitly tell Next.js how to handle dynamic segments not covered by generateStaticParams.
+// true (default): Allows client-side rendering for segments not pre-rendered.
+export const dynamicParams = true;
+
 // This Server Component wrapper will render the actual client-side page logic.
 export default function ProjectPage() {
   return <ProjectPageClient />;

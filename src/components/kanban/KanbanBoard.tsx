@@ -76,7 +76,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="w-full">
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-6 pb-4">
+          <div className="flex gap-3 pb-4">
             {TASK_STATUSES.map((status) => (
               <div key={status} className="w-[320px] min-w-[300px] flex-shrink-0">
                 <KanbanColumn

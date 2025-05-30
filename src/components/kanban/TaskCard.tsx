@@ -52,7 +52,12 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
   };
   
   return (
-    <Draggable draggableId={task.id} index={index} isDragDisabled={false} ignoreContainerClipping={false}>
+    <Draggable 
+      draggableId={task.id} 
+      index={index} 
+      isDragDisabled={false} 
+      ignoreContainerClipping={false}
+    >
       {(provided, snapshot) => (
         <Card
           ref={provided.innerRef}
@@ -72,7 +77,10 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
             </div>
             <CardTitle className="text-base font-semibold leading-tight break-words pr-8">{task.title}</CardTitle> 
             {task.description && (
-              <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis break-words">
+              <CardDescription 
+                className="text-xs mt-1 line-clamp-2 break-words" 
+                title={task.description}
+              >
                 {task.description}
               </CardDescription>
             )}

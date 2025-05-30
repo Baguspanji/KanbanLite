@@ -44,8 +44,8 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
           {...provided.draggableProps}
           className={`
             flex items-center gap-3
-            p-3 border rounded-lg shadow-sm bg-card
-            hover:shadow-md transition-shadow duration-200
+            px-3 py-1.5 border rounded-md bg-card
+            transition-shadow duration-200
             ${snapshot.isDragging ? 'bg-primary/10 shadow-xl ring-2 ring-primary' : ''}
           `}
           style={{
@@ -91,7 +91,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
                 <Button variant="ghost" size="icon" className="h-8 w-8 relative">
                   <MessageSquare className="h-4 w-4" />
                   {task.comments && task.comments.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 transform translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 transform translate-x-1/2 -translate-y-1/2 bg-primary text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">
                       {task.comments.length > 9 ? '9+' : task.comments.length}
                     </span>
                   )}

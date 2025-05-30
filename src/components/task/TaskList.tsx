@@ -64,7 +64,7 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
           <div
             {...provided.droppableProps}
             ref={provided.innerRef}
-            className={`space-y-3 mt-4 transition-colors duration-200 ease-in-out ${snapshot.isDraggingOver ? 'bg-accent/10 rounded-md p-2' : 'p-0'}`}
+            className={`mt-2 p-2 transition-colors duration-200 ease-in-out ${snapshot.isDraggingOver ? 'bg-accent/10 rounded-md' : ''}`}
           >
             {tasks.map((task, index) => (
               <TaskListItem key={task.id} task={task} projectId={projectId} index={index} />

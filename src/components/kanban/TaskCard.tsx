@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Task, TaskPriority } from "@/types";
-import { CalendarDays, MessageSquare, GripVertical, MoreHorizontal, Edit3, Trash2, MessageCircle } from "lucide-react";
+import { CalendarDays, MessageSquare, GripVertical, MoreVertical, Edit3, Trash2, MessageCircle } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
 import { TaskCommentsDialog } from "./TaskCommentsDialog";
@@ -53,21 +53,20 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
           style={{ ...provided.draggableProps.style }}
         >
           <div className="flex items-start p-3">
-             <div {...provided.dragHandleProps} className="cursor-grab py-2 pr-2 text-muted-foreground hover:text-foreground flex-shrink-0">
+             <div {...provided.dragHandleProps} className="cursor-grab pt-0.5 pr-2 text-muted-foreground hover:text-foreground flex-shrink-0">
               <GripVertical className="h-4 w-4" />
             </div>
             <div className="flex-grow min-w-0 space-y-1">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full flex-shrink-0 mt-1"></span>
-                        <CardTitle className="text-sm font-medium leading-tight break-words w-full min-w-0">
+                        <CardTitle className="text-sm font-semibold leading-tight break-words w-full min-w-0">
                             {task.title}
                         </CardTitle>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 -mr-2 -mt-0.5 flex-shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 -mr-2 -mt-1.5 flex-shrink-0">
+                            <MoreVertical className="h-4 w-4" />
                             <span className="sr-only">Task actions</span>
                         </Button>
                         </DropdownMenuTrigger>
@@ -96,7 +95,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
             <CardFooter className="px-3 pb-3 pt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
               <div className="flex items-center gap-3">
                 {task.deadline && (
-                  <div className="flex items-center text-xs text-muted-foreground">
+                  <div className="flex items-center text-xs text-destructive">
                     <CalendarDays className="h-3 w-3.5 mr-1 flex-shrink-0" />
                     {format(parseISO(task.deadline), "dd MMM")}
                   </div>

@@ -62,7 +62,7 @@ export default function ProjectPageClient() {
           </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-3 pt-3 border-t border-border/50 mt-3">
+        <div className="flex flex-row items-center justify-between gap-3 pt-3 border-t border-border/50 mt-3">
             <Skeleton className="h-10 w-[150px] sm:w-40 px-4" />
             <Skeleton className="h-10 w-32" />
         </div>
@@ -131,7 +131,7 @@ export default function ProjectPageClient() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-end gap-3 pt-3 border-t border-border/50 mt-3">
+        <div className="flex flex-row items-center justify-between gap-3 pt-3 border-t border-border/50 mt-3">
           <ToggleGroup 
             type="single" 
             value={viewMode} 
@@ -152,7 +152,7 @@ export default function ProjectPageClient() {
             projectId={projectId}
             defaultStatus="To Do" 
             triggerButton={
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Task
               </Button>
             }

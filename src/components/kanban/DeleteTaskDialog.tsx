@@ -19,7 +19,8 @@ import { Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DeleteTaskDialogProps {
-  task: Task;
+  // Task object passed here will include projectId from AppContext state
+  task: Task; 
   onDeleted?: () => void;
 }
 
@@ -29,7 +30,8 @@ export function DeleteTaskDialog({ task, onDeleted }: DeleteTaskDialogProps) {
 
   const handleDelete = () => {
     try {
-      deleteTask(task.id);
+      // deleteTask now requires projectId and taskId
+      deleteTask(task.projectId, task.id); 
       toast({ title: "Task Deleted", description: `Task "${task.title}" has been deleted.` });
       if (onDeleted) {
         onDeleted();

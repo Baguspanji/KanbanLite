@@ -10,16 +10,17 @@ export interface Comment {
   updatedAt?: string; // Store as ISO string, optional
   fileURL?: string; // URL of the uploaded file in Firebase Storage
   fileName?: string; // Original name of the uploaded file
-  // Future: userId?: string; userName?: string;
 }
 
 export interface Task {
   id: string;
+  // projectId is NOT stored in the task document in Firestore,
+  // but added back in AppContext when reading from collectionGroup for client-side use.
+  projectId: string; 
   title: string;
   description?: string;
   deadline?: string; // Store as ISO string (e.g., YYYY-MM-DD)
   status: TaskStatus;
-  projectId: string;
   createdAt: string; // Store as ISO string
   comments?: Comment[];
   order?: number; // For manual list ordering

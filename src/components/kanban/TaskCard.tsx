@@ -17,18 +17,19 @@ import { useToast } from "@/hooks/use-toast";
 import { Draggable } from '@hello-pangea/dnd';
 
 interface TaskCardProps {
-  task: Task;
-  projectId: string;
+  task: Task; // Task object now includes projectId
+  // projectId is no longer needed as a separate prop if task object contains it
   index: number;
 }
 
-export function TaskCard({ task, projectId, index }: TaskCardProps) {
+export function TaskCard({ task, index }: TaskCardProps) {
   const { moveTask } = useAppContext();
   const { toast } = useToast();
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     try {
-      moveTask(task.id, newStatus);
+      // moveTask now requires projectId
+      moveTask(task.projectId, task.id, newStatus);
       toast({ title: "Task Status Updated", description: `Task "${task.title}" moved to ${newStatus}.` });
     } catch (error) {
       toast({ title: "Error", description: "Failed to update task status.", variant: "destructive"});
@@ -56,6 +57,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
       draggableId={task.id}
       index={index}
       isDragDisabled={false}
+      // ignoreContainerClipping={false} // Already added
     >
       {(provided, snapshot) => (
         <Card
@@ -118,7 +120,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
             </div>
             <div className="flex gap-1 self-end sm:self-center">
               <TaskCommentsDialog
-                task={task}
+                task={task} // Task object now includes projectId
                 triggerButton={
                   <Button variant="ghost" size="icon" className="h-7 w-7">
                     <MessageSquare className="h-4 w-4" />
@@ -127,7 +129,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
                 }
               />
               <CreateTaskDialog
-                projectId={projectId}
+                projectId={task.projectId} // Pass projectId from task object
                 task={task}
                 triggerButton={
                   <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -136,7 +138,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
                   </Button>
                 }
               />
-              <DeleteTaskDialog task={task} />
+              <DeleteTaskDialog task={task} /> {/* Task object includes projectId */}
             </div>
           </CardFooter>
         </Card>

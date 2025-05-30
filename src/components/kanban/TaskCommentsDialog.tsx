@@ -29,12 +29,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAppContext } from "@/context/AppContext";
-import type { Task, Comment } from "@/types";
+import type { Task, Comment } from "@/types"; // Task type includes projectId
 import { Send, Paperclip, XCircle, UploadCloud, Edit2, Trash2, FileText, Image as ImageIcon } from "lucide-react";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/firebase";
-import { ref as storageRefFB, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"; // Renamed to avoid conflict with local storageRef
+import { ref as storageRefFB, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -44,7 +44,7 @@ const commentFormSchema = z.object({
 type CommentFormValues = z.infer<typeof commentFormSchema>;
 
 interface TaskCommentsDialogProps {
-  task: Task;
+  task: Task; // Task object now includes projectId
   triggerButton: React.ReactNode;
 }
 
@@ -58,7 +58,6 @@ function isImageFile(fileName?: string): boolean {
   return IMAGE_EXTENSIONS.includes(extension);
 }
 
-// Helper function to convert file to WebP
 async function convertToWebP(file: File, quality = 0.8): Promise<File> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -122,7 +121,6 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Cleanup object URL on unmount or when a new one is created
     return () => {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
@@ -174,7 +172,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         if (fileInputRef.current) fileInputRef.current.value = "";
         setAttachmentAction(editingComment?.fileURL ? 'keep' : 'remove');
         if (editingComment?.fileURL && isImageFile(editingComment.fileName)) {
-            setImagePreviewUrl(editingComment.fileURL); // Restore preview if keeping old file
+            setImagePreviewUrl(editingComment.fileURL);
         }
         return;
       }
@@ -188,7 +186,6 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         } catch (conversionError) {
           console.error("Error converting to WebP:", conversionError);
           setFileError("Failed to convert image. Original file will be used.");
-          // processedFile remains the original file
         } finally {
           setIsConvertingFile(false);
         }
@@ -203,17 +200,15 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         objectUrlRef.current = newObjectUrl;
       }
 
-    } else { // No file selected
+    } else { 
       setSelectedFile(null);
-      // If editing and we had an attachment, decide whether to keep or clear preview
       if (editingComment?.fileURL && attachmentAction !== 'remove') {
         setAttachmentAction('keep');
         if(isImageFile(editingComment.fileName)) {
           setImagePreviewUrl(editingComment.fileURL);
         }
       } else {
-        // No file selected, and not keeping an old one.
-        setCurrentAttachmentName(null); // Clear name if truly no file
+        setCurrentAttachmentName(null); 
       }
     }
   };
@@ -235,7 +230,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
       setCurrentAttachmentName(comment.fileName);
       setAttachmentAction('keep');
       if (isImageFile(comment.fileName)) {
-        setImagePreviewUrl(comment.fileURL); // Show existing image
+        setImagePreviewUrl(comment.fileURL); 
       }
     } else {
       setCurrentAttachmentName(null);
@@ -263,7 +258,8 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
           oldFileToDelete = editingComment.fileURL;
         }
         setUploadProgress(0);
-        const storagePath = `task_attachments/${task.id}/${Date.now()}_${selectedFile.name}`;
+        // task.id is now task.id (which is the taskId)
+        const storagePath = `task_attachments/${task.projectId}/${task.id}/${Date.now()}_${selectedFile.name}`;
         const fileStorageRefInstance = storageRefFB(storage, storagePath);
         const uploadTask = uploadBytesResumable(fileStorageRefInstance, selectedFile);
 
@@ -293,7 +289,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
         fileName = undefined;
       }
 
-      if (oldFileToDelete && oldFileToDelete !== fileURL) { // Ensure not deleting the same file if URL didn't change
+      if (oldFileToDelete && oldFileToDelete !== fileURL) { 
         try {
           const oldFileRef = storageRefFB(storage, oldFileToDelete);
           await deleteObject(oldFileRef);
@@ -305,10 +301,10 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
       const commentPayload = { text: data.text, fileURL, fileName };
 
       if (editingComment) {
-        await updateCommentInTask(task.id, editingComment.id, commentPayload);
+        await updateCommentInTask(task.projectId, task.id, editingComment.id, commentPayload);
         toast({ title: "Comment Updated", description: "Your comment has been updated." });
       } else {
-        await addCommentToTask(task.id, commentPayload);
+        await addCommentToTask(task.projectId, task.id, commentPayload);
         toast({ title: "Comment Added", description: "Your comment has been posted." });
       }
       resetFormAndState();
@@ -495,4 +491,3 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
     </Dialog>
   );
 }
-

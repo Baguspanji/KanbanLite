@@ -12,12 +12,12 @@ import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { Draggable } from '@hello-pangea/dnd';
 
 interface TaskListItemProps {
-  task: Task;
-  projectId: string;
+  task: Task; // Task object now includes projectId
+  // projectId is no longer needed as a separate prop
   index: number; 
 }
 
-export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
+export function TaskListItem({ task, index }: TaskListItemProps) {
   const getStatusBadgeClass = (status: TaskStatus) => {
     switch (status) {
       case 'To Do':
@@ -35,7 +35,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
 
   return (
     <Draggable
-      draggableId={`task-${task.id}-item`}
+      draggableId={`task-${task.id}-item`} // Keep draggableId unique
       index={index}
       disableInteractiveElementBlocking={true}>
       {(provided, snapshot) => (
@@ -43,10 +43,10 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={`
-            flex items-center gap-3
+            flex items-center gap-3 mb-2
             px-3 py-1.5 border rounded-md bg-card
             transition-shadow duration-200
-            ${snapshot.isDragging ? 'bg-primary/10 shadow-xl ring-2 ring-primary' : ''}
+            ${snapshot.isDragging ? 'bg-primary/10 shadow-xl ring-2 ring-primary' : 'shadow-sm hover:shadow-md'}
           `}
           style={{
             ...provided.draggableProps.style,
@@ -86,12 +86,12 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
 
           <div className="flex items-center gap-0.5 sm:gap-1 ml-auto flex-shrink-0">
             <TaskCommentsDialog
-              task={task}
+              task={task} // Task object includes projectId
               triggerButton={
                 <Button variant="ghost" size="icon" className="h-8 w-8 relative">
                   <MessageSquare className="h-4 w-4" />
                   {task.comments && task.comments.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 transform translate-x-1/2 -translate-y-1/2 bg-primary text-white text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 transform translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">
                       {task.comments.length > 9 ? '9+' : task.comments.length}
                     </span>
                   )}
@@ -100,7 +100,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
               }
             />
             <CreateTaskDialog
-              projectId={projectId}
+              projectId={task.projectId} // Pass projectId from task object
               task={task}
               triggerButton={
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -110,7 +110,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
               }
             />
             <DeleteTaskDialog
-              task={task}
+              task={task} // Task object includes projectId
             />
           </div>
         </div>

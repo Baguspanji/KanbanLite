@@ -29,7 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAppContext } from "@/context/AppContext";
-import type { Task, TaskStatus } from "@/types";
+import type { Task, TaskStatus } from "@/types"; // Task type no longer has projectId for direct storage
 import { TASK_STATUSES } from "@/types";
 import { PlusCircle, Edit3, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -47,8 +47,8 @@ const taskFormSchema = z.object({
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
 interface CreateTaskDialogProps {
-  projectId: string;
-  task?: Task; // For editing
+  projectId: string; // Still needed to know where to add/update the task
+  task?: Task; // For editing, this task object will include projectId from AppContext
   triggerButton?: React.ReactNode;
   defaultStatus?: TaskStatus;
 }
@@ -89,14 +89,17 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
   const onSubmit = (data: TaskFormValues) => {
     try {
       if (task) {
-        updateTask(task.id, { 
+        // For updateTask, we pass projectId and taskId separately.
+        // The 'updates' object should not contain projectId.
+        updateTask(projectId, task.id, { 
           title: data.title, 
           description: data.description, 
-          deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined, // Convert Date to ISO string
+          deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined,
           status: data.status as TaskStatus
         });
         toast({ title: "Task Updated", description: `Task "${data.title}" has been updated.` });
       } else {
+        // addTask still needs projectId, but it's not part of the task document data.
         addTask(projectId, data.title, data.description, data.deadline || undefined, data.status as TaskStatus);
         toast({ title: "Task Created", description: `Task "${data.title}" has been created.` });
       }
@@ -187,7 +190,7 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
                         mode="single"
                         selected={field.value || undefined}
                         onSelect={field.onChange}
-                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } // Disable past dates
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) }
                         initialFocus
                       />
                     </PopoverContent>

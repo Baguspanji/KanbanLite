@@ -8,14 +8,14 @@ import { CreateTaskDialog } from "@/components/kanban/CreateTaskDialog";
 import { DeleteTaskDialog } from "@/components/kanban/DeleteTaskDialog";
 import { TaskCommentsDialog } from "@/components/kanban/TaskCommentsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Edit3, MessageSquare, CalendarDays, GripVertical, MoreHorizontal, Trash2, MessageCircle } from "lucide-react";
+import { Edit3, MessageSquare, CalendarDays, GripVertical, MoreHorizontal, MessageCircle, Trash2 } from "lucide-react";
 import { format, parseISO } from 'date-fns';
 import { Draggable } from '@hello-pangea/dnd';
 import { useState } from "react";
 
 interface TaskListItemProps {
   task: Task;
-  projectId: string; // projectId is needed by dialogs
+  projectId: string; 
   index: number;
 }
 
@@ -87,16 +87,26 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
                 {task.description}
               </p>
             )}
-            <div className="flex items-center text-xs text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-              {format(parseISO(task.createdAt), "dd MMM yyyy")}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
+              <div className="flex items-center">
+                <CalendarDays className="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                <span className="mr-1">Created:</span>
+                {task.createdAt ? format(parseISO(task.createdAt), "dd MMM yy") : 'N/A'}
+              </div>
+              {task.deadline && ( 
+                <div className="flex items-center">
+                  <CalendarDays className="h-3.5 w-3.5 mr-1 flex-shrink-0 text-destructive" />
+                  <span className="mr-1">Deadline:</span>
+                  {format(parseISO(task.deadline), "dd MMM yy")}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right Aligned Info & Actions */}
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-shrink-0">
             {task.priority && (
-              <Badge variant="outline" className={`text-xs px-2 py-0.5 h-6 sm:inline-flex ${getPriorityBadgeClass(task.priority)}`}>
+              <Badge variant="outline" className={`text-xs px-2 py-0.5 h-6 hidden sm:inline-flex ${getPriorityBadgeClass(task.priority)}`}>
                 {task.priority}
               </Badge>
             )}
@@ -105,15 +115,12 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
               {task.status}
             </Badge>
             
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={() => setIsCommentsOpen(true)}>
-                <MessageSquare className="h-4 w-4" />
-                {task.comments && task.comments.length > 0 && (
-                <span className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1 rounded-full min-w-[16px] h-[16px] flex items-center justify-center">
-                    {task.comments.length}
-                </span>
-                )}
-                <span className="sr-only">View Comments</span>
-            </Button>
+            {task.comments && task.comments.length > 0 && (
+              <div className="flex items-center text-xs text-muted-foreground" title={`${task.comments.length} comment(s)`}>
+                <MessageSquare className="h-4 w-4 mr-0.5 sm:mr-1" />
+                {task.comments.length}
+              </div>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -142,19 +149,19 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
             task={task}
             open={isCreateTaskOpen}
             onOpenChange={setIsCreateTaskOpen}
-            triggerButton={<span />} // Hidden trigger
+            triggerButton={<span />} 
           />
           <DeleteTaskDialog
             task={task}
             open={isDeleteTaskOpen}
             onOpenChange={setIsDeleteTaskOpen}
-            triggerButton={<span />} // Hidden trigger
+            triggerButton={<span />} 
           />
           <TaskCommentsDialog
             task={task}
             open={isCommentsOpen}
             onOpenChange={setIsCommentsOpen}
-            triggerButton={<span />} // Hidden trigger
+            triggerButton={<span />} 
           />
         </div>
       )}

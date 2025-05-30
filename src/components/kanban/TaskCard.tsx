@@ -60,7 +60,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 bg-gray-300 dark:bg-gray-600 rounded-full flex-shrink-0 mt-1"></span>
-                        <CardTitle className="text-sm font-medium leading-tight break-words">
+                        <CardTitle className="text-sm font-medium leading-tight break-words w-full min-w-0">
                             {task.title}
                         </CardTitle>
                     </div>
@@ -122,22 +122,23 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
             task={task}
             open={isCreateTaskOpen}
             onOpenChange={setIsCreateTaskOpen}
-            triggerButton={<></>} // Hidden trigger, dialog controlled by state
+            triggerButton={<span />} // Hidden trigger, dialog controlled by state
           />
           <DeleteTaskDialog
             task={task}
             open={isDeleteTaskOpen}
             onOpenChange={setIsDeleteTaskOpen}
-            triggerButton={<></>} // Hidden trigger
+            triggerButton={<span />} // Hidden trigger
           />
           <TaskCommentsDialog
             task={task}
             open={isCommentsOpen}
             onOpenChange={setIsCommentsOpen}
-            triggerButton={<></>} // Hidden trigger
+            triggerButton={<span />} // Hidden trigger
           />
         </Card>
       )}
     </Draggable>
   );
 }
+

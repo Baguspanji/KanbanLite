@@ -41,7 +41,7 @@ const taskFormSchema = z.object({
   title: z.string().min(1, "Title is required.").max(100, "Title must be 100 characters or less."),
   description: z.string().max(500, "Description must be 500 characters or less.").optional(),
   deadline: z.date().optional().nullable(),
-  status: z.enum(TASK_STATUSES),
+  status: z.enum(TASK_STATUSES as [string, ...string[]]),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -92,12 +92,12 @@ export function CreateTaskDialog({ projectId, task, triggerButton, defaultStatus
         updateTask(task.id, { 
           title: data.title, 
           description: data.description, 
-          deadline: data.deadline || undefined, // Send undefined if null
-          status: data.status 
+          deadline: data.deadline ? data.deadline.toISOString().split('T')[0] : undefined, // Convert Date to ISO string
+          status: data.status as TaskStatus
         });
         toast({ title: "Task Updated", description: `Task "${data.title}" has been updated.` });
       } else {
-        addTask(projectId, data.title, data.description, data.deadline || undefined, data.status);
+        addTask(projectId, data.title, data.description, data.deadline || undefined, data.status as TaskStatus);
         toast({ title: "Task Created", description: `Task "${data.title}" has been created.` });
       }
       setIsOpen(false);

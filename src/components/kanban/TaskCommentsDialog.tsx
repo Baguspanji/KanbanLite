@@ -443,7 +443,7 @@ export function TaskCommentsDialog({ task, triggerButton }: TaskCommentsDialogPr
               )}
               {fileError && <FormMessage>{fileError}</FormMessage>}
               
-              {imagePreviewUrl && (selectedFile || (currentAttachmentName && attachmentAction === 'keep')) && isImageFile(selectedFile?.name || currentAttachmentName) && (
+              {imagePreviewUrl && (selectedFile || (currentAttachmentName && attachmentAction === 'keep')) && isImageFile(selectedFile?.name || currentAttachmentName || undefined) && (
                 <div className="mt-2">
                   <p className="text-xs text-muted-foreground mb-1">Preview:</p>
                   <img 

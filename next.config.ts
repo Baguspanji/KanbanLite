@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const isGitHubPages = process.env.GITHUB_ACTIONS === 'true';
@@ -30,22 +29,6 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
-  },
-  // Ensure your app can connect to Firebase Storage from a different domain if needed for development
-  // This might not be strictly necessary for client-side Firebase SDK but good to be aware of.
-  async headers() {
-    return [
-      {
-        source: '/:all*(svg|jpg|png|webp)',
-        locale: false,
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*', // Be more restrictive in production if possible
-          },
-        ],
-      },
-    ];
   },
 };
 

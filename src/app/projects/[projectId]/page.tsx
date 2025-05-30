@@ -18,6 +18,7 @@ import { TaskListSkeleton } from '@/components/task/TaskListSkeleton';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useLocalStorage from '@/hooks/useLocalStorage';
 
+export const dynamic = 'force-dynamic';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -96,6 +97,11 @@ export default function ProjectPage() {
         </Button>
       </div>
     );
+  }
+
+  // Type guard to ensure project is not null
+  if (!project) {
+    return null; // This should never happen due to the logic above, but satisfies TypeScript
   }
 
   // Project is loaded

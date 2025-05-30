@@ -56,7 +56,6 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
       draggableId={task.id}
       index={index}
       isDragDisabled={false}
-      ignoreContainerClipping={false}
     >
       {(provided, snapshot) => (
         <Card

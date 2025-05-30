@@ -242,24 +242,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     if (taskUpdates.status !== undefined) updatesToSend.status = taskUpdates.status;
     if (taskUpdates.hasOwnProperty('deadline')) {
-      if (taskUpdates.deadline instanceof Date) {
-        updatesToSend.deadline = Timestamp.fromDate(taskUpdates.deadline);
+      if (taskUpdates.deadline) {
+        let deadLineDate = new Date(taskUpdates.deadline);
+        updatesToSend.deadline = Timestamp.fromDate(deadLineDate);
       } else if (taskUpdates.deadline === null || taskUpdates.deadline === undefined) {
         updatesToSend.deadline = null;
       } else if (typeof taskUpdates.deadline === 'string') {
-         updatesToSend.deadline = Timestamp.fromDate(parseISO(taskUpdates.deadline));
+        updatesToSend.deadline = Timestamp.fromDate(parseISO(taskUpdates.deadline));
       }
     }
     if (taskUpdates.order !== undefined) updatesToSend.order = taskUpdates.order;
     if (taskUpdates.comments !== undefined) {
-       updatesToSend.comments = taskUpdates.comments.map(c => {
+        updatesToSend.comments = taskUpdates.comments.map(c => {
+        let createdAt = Timestamp.fromDate(new Date());
+        if (c.createdAt) {
+          createdAt = Timestamp.fromDate(parseISO(c.createdAt));
+        }
         const firestoreComment: any = {
           id: c.id,
           text: c.text,
-          createdAt: c.createdAt instanceof Timestamp ? c.createdAt : Timestamp.fromDate(parseISO(c.createdAt)),
+          createdAt: createdAt,
         };
         if (c.updatedAt) {
-          firestoreComment.updatedAt = c.updatedAt instanceof Timestamp ? c.updatedAt : Timestamp.fromDate(parseISO(c.updatedAt));
+          firestoreComment.updatedAt = Timestamp.fromDate(parseISO(c.updatedAt));
         }
         if (c.fileURL !== undefined) {
           firestoreComment.fileURL = c.fileURL;
@@ -297,7 +302,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           console.log(`Task ${id}: Preparing to delete attachments for ${taskData.comments.length} comment(s).`);
           for (const comment of taskData.comments) {
             if (comment.fileURL && typeof comment.fileURL === 'string') {
-               fileDeletionPromises.push(
+                fileDeletionPromises.push(
                 (async () => {
                   console.log(`Task ${id}: Attempting to delete attachment ${comment.fileURL}`);
                   try {

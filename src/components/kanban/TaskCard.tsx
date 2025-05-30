@@ -19,7 +19,7 @@ import { Draggable } from '@hello-pangea/dnd';
 interface TaskCardProps {
   task: Task;
   projectId: string;
-  index: number; 
+  index: number;
 }
 
 export function TaskCard({ task, projectId, index }: TaskCardProps) {
@@ -38,47 +38,47 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
 
   const getStatusBadgeClass = (status: TaskStatus) => {
     switch (status) {
-      case 'To Do': 
+      case 'To Do':
         return 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80';
-      case 'On Dev': 
+      case 'On Dev':
         return 'bg-blue-500 text-white hover:bg-blue-500/90 dark:bg-blue-600 dark:hover:bg-blue-600/90';
       case 'On QA':
         return 'bg-yellow-500 text-white hover:bg-yellow-500/90 dark:bg-yellow-600 dark:hover:bg-yellow-600/90';
-      case 'Done': 
+      case 'Done':
         return 'bg-green-500 text-white hover:bg-green-500/90 dark:bg-green-600 dark:hover:bg-green-600/90';
-      default: 
+      default:
         return 'bg-gray-500 text-white hover:bg-gray-500/90';
     }
   };
-  
+
   return (
-    <Draggable 
-      draggableId={task.id} 
-      index={index} 
-      isDragDisabled={false} 
+    <Draggable
+      draggableId={task.id}
+      index={index}
+      isDragDisabled={false}
       ignoreContainerClipping={false}
     >
       {(provided, snapshot) => (
         <Card
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`w-full mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
+          className={`w-full min-w-0 mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
           style={{
             ...provided.draggableProps.style,
           }}
         >
-          <CardHeader className="pb-3 pt-4 px-4 relative">
-            <div 
-              {...provided.dragHandleProps} 
+          <CardHeader className="pb-3 pt-4 px-4 relative w-full min-w-0">
+            <div
+              {...provided.dragHandleProps}
               className="absolute top-3 right-2 p-1 cursor-grab text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Drag task"
             >
               <GripVertical className="h-5 w-5" />
             </div>
-            <CardTitle className="text-base font-semibold leading-tight break-words pr-8">{task.title}</CardTitle> 
+            <CardTitle className="text-base font-semibold leading-tight break-words pr-8 w-full min-w-0">{task.title}</CardTitle>
             {task.description && (
-              <CardDescription 
-                className="text-xs mt-1 line-clamp-2 break-words" 
+              <CardDescription
+                className="text-xs mt-1 line-clamp-2 break-words"
                 title={task.description}
               >
                 {task.description}

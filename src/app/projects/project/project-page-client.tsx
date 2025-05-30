@@ -43,7 +43,7 @@ function ProjectPageContent() {
   }, [projectId, getProjectById, projects, contextIsLoading]);
 
   const handleProjectDeleted = () => {
-    router.push('/');
+    router.push('/projects');
   };
 
   if (project === undefined) { 
@@ -83,7 +83,7 @@ function ProjectPageContent() {
         <h2 className="text-2xl font-semibold mb-4">Project Not Found</h2>
         <p className="text-muted-foreground mb-6">The project you are looking for does not exist or may have been deleted.</p>
         <Button asChild>
-          <Link href="/">
+          <Link href="/projects">
             <ArrowLeft className="mr-2 h-4 w-4" /> Go Back to Projects
           </Link>
         </Button>

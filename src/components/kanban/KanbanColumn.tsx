@@ -4,7 +4,7 @@
 import type { Task, TaskStatus } from "@/types";
 import { TaskCard } from "./TaskCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Droppable } from 'react-beautiful-dnd';
+import { Droppable } from '@hello-pangea/dnd';
 
 interface KanbanColumnProps {
   title: TaskStatus;
@@ -36,7 +36,7 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
         type="TASK" 
         isDropDisabled={false} 
         isCombineEnabled={false}
-        ignoreContainerClipping={false} // Explicitly set prop
+        ignoreContainerClipping={false} 
       >
         {(provided, snapshot) => (
           <ScrollArea 
@@ -45,7 +45,7 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className="min-h-[100px]" // Ensure droppable area has some height even when empty
+              className="min-h-[100px]" 
             >
               {tasks.length === 0 ? (
                  !snapshot.isDraggingOver && <p className="text-sm text-muted-foreground text-center pt-10">No tasks yet.</p>

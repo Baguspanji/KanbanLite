@@ -2,10 +2,10 @@
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
-import type { Task } from "@/types"; // Ensure Task type is imported
+import type { Task } from "@/types"; 
 import { TaskListItem } from "./TaskListItem";
 import { TaskListSkeleton } from "./TaskListSkeleton";
-import { DragDropContext, Droppable, type OnDragEndResponder } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, type OnDragEndResponder } from '@hello-pangea/dnd';
 import { useEffect, useState } from "react";
 import { FileText } from "lucide-react";
 
@@ -27,14 +27,13 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
     const { source, destination } = result;
 
     if (!destination) {
-      return; // Dropped outside a valid droppable
+      return; 
     }
 
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      return; // Dropped in the same place
+      return; 
     }
 
-    // Call the reorder function from context
     reorderTasksInList(projectId, source.index, destination.index);
   };
 
@@ -58,8 +57,8 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
         droppableId={`project-${projectId}-tasks`}
         type="TASK_LIST_ITEM"
         isDropDisabled={false}
-        isCombineEnabled={false} // Explicitly set isCombineEnabled
-        ignoreContainerClipping={false} // Explicitly set ignoreContainerClipping
+        isCombineEnabled={false} 
+        ignoreContainerClipping={false}
       >
         {(provided, snapshot) => (
           <div
@@ -77,4 +76,3 @@ export function TaskListComponent({ projectId }: TaskListComponentProps) {
     </DragDropContext>
   );
 }
-

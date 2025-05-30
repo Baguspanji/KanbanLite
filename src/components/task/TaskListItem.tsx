@@ -9,12 +9,12 @@ import { DeleteTaskDialog } from "@/components/kanban/DeleteTaskDialog";
 import { TaskCommentsDialog } from "@/components/kanban/TaskCommentsDialog";
 import { Edit3, MessageSquare, CalendarDays, GripVertical } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
-import { Draggable } from 'react-beautiful-dnd';
+import { Draggable } from '@hello-pangea/dnd';
 
 interface TaskListItemProps {
   task: Task;
   projectId: string;
-  index: number; // For react-beautiful-dnd
+  index: number; 
 }
 
 export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
@@ -34,15 +34,14 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
   };
 
   return (
-    <Draggable 
-      key={task.id}
-      draggableId={task.id} 
-      index={index}>
+    <Draggable
+      draggableId={`task-${task.id}-item`}
+      index={index}
+      disableInteractiveElementBlocking={true}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          // dragHandleProps is applied to the specific handle element below
           className={`
             flex items-center gap-3
             p-3 border rounded-lg shadow-sm bg-card
@@ -54,7 +53,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
           }}
         >
           <div
-            {...provided.dragHandleProps} // Apply dragHandleProps here
+            {...provided.dragHandleProps} 
             className="flex-shrink-0 cursor-grab text-muted-foreground hover:text-foreground transition-colors self-center py-2 px-1"
             aria-label="Drag task"
           >
@@ -80,7 +79,7 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
               </div>
             </div>
           </div>
-          
+
           <Badge className={`${getStatusBadgeClass(task.status)} text-xs px-2.5 py-1 h-fit mx-2 sm:mx-4 flex-shrink-0 whitespace-nowrap`}>
             {task.status}
           </Badge>
@@ -110,9 +109,9 @@ export function TaskListItem({ task, projectId, index }: TaskListItemProps) {
                 </Button>
               }
             />
-            <DeleteTaskDialog 
-              task={task} 
-            /> 
+            <DeleteTaskDialog
+              task={task}
+            />
           </div>
         </div>
       )}

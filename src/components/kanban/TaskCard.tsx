@@ -14,12 +14,12 @@ import { TaskCommentsDialog } from "./TaskCommentsDialog";
 import { useAppContext } from "@/context/AppContext";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
-import { Draggable } from 'react-beautiful-dnd';
+import { Draggable } from '@hello-pangea/dnd';
 
 interface TaskCardProps {
   task: Task;
   projectId: string;
-  index: number; // Added for react-beautiful-dnd
+  index: number; 
 }
 
 export function TaskCard({ task, projectId, index }: TaskCardProps) {
@@ -57,7 +57,6 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
         <Card
           ref={provided.innerRef}
           {...provided.draggableProps}
-          // Remove dragHandleProps from the Card itself
           className={`mb-4 shadow-md hover:shadow-lg transition-shadow duration-200 bg-card ${snapshot.isDragging ? 'shadow-2xl scale-105 opacity-95 ring-2 ring-primary' : ''}`}
           style={{
             ...provided.draggableProps.style,
@@ -65,13 +64,13 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
         >
           <CardHeader className="pb-3 pt-4 px-4 relative">
             <div 
-              {...provided.dragHandleProps} // Apply dragHandleProps to the icon container
+              {...provided.dragHandleProps} 
               className="absolute top-3 right-2 p-1 cursor-grab text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Drag task"
             >
               <GripVertical className="h-5 w-5" />
             </div>
-            <CardTitle className="text-base font-semibold leading-tight break-words pr-8">{task.title}</CardTitle> {/* Added pr-8 for space for the handle */}
+            <CardTitle className="text-base font-semibold leading-tight break-words pr-8">{task.title}</CardTitle> 
             {task.description && (
               <CardDescription className="text-xs mt-1 h-12 overflow-hidden text-ellipsis break-words">
                 {task.description}

@@ -7,7 +7,7 @@ import { TASK_STATUSES } from "@/types";
 import { KanbanColumn } from "./KanbanColumn";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { KanbanColumnSkeleton } from "./KanbanColumnSkeleton";
-import { DragDropContext, type OnDragEndResponder } from 'react-beautiful-dnd';
+import { DragDropContext, type OnDragEndResponder } from '@hello-pangea/dnd';
 import { useState, useEffect } from "react";
 
 interface KanbanBoardProps {

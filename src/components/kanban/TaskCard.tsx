@@ -83,7 +83,7 @@ export function TaskCard({ task, projectId, index }: TaskCardProps) {
                     </DropdownMenu>
                 </div>
               {task.description && (
-                <CardDescription className="text-xs line-clamp-2 break-words pr-1" title={task.description}>
+                <CardDescription className="max-w-60 text-xs h-10 overflow-hidden text-ellipsis pr-1" title={task.description}>
                   {task.description}
                 </CardDescription>
               )}

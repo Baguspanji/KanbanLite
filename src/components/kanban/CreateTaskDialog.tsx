@@ -239,7 +239,7 @@ export function CreateTaskDialog({
                 control={form.control}
                 name="priority"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Priority</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || 'Medium'}>
                       <FormControl>

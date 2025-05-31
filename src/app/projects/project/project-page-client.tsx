@@ -103,7 +103,7 @@ function ProjectPageContent() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex-grow">
             <Button variant="ghost" size="sm" asChild className="mb-2 -ml-3 sm:-ml-2">
-              <Link href="/">
+              <Link href="/projects">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
               </Link>
             </Button>

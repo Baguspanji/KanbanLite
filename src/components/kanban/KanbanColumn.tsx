@@ -55,7 +55,7 @@ export function KanbanColumn({ title, tasks, projectId }: KanbanColumnProps) {
               className="min-h-[150px] space-y-3" // Added space-y-3 for gap between cards
             >
               {tasks.length === 0 ? (
-                 !snapshot.isDraggingOver && <p className="text-xs text-muted-foreground text-center pt-10">No tasks in this stage.</p>
+                !snapshot.isDraggingOver && <p className="text-xs text-muted-foreground text-center pt-10">No tasks in this stage.</p>
               ) : (
                 tasks.map((task, index) => (
                   <TaskCard key={task.id} task={task} projectId={projectId} index={index} />
